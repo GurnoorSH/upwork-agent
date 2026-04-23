@@ -1,0 +1,17 @@
+{
+  "name": "upwork-agent",
+  "version": "1.0.0",
+  "description": "CLI tool that scrapes Upwork job listings via RSS, enriches with client data, and uses Gemini AI to score and rank jobs for bidding decisions.",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "fast-xml-parser": "^4.3.6",
+    "cheerio": "^1.0.0",
+    "@google/generative-ai": "^0.24.0",
+    "dotenv": "^16.0.0"
+  }
+}
