@@ -26,12 +26,12 @@ const config = {
     "Canada",
   ],
 
-  // Your freelancer profile — used by Claude to personalize scoring
+  // Your freelancer profile — used by Gemini to personalize scoring
   myProfile:
     "Full-stack developer with 1 year experience. Stack: .NET Core, React, " +
     "Next.js, JavaScript, Entity Framework. Based in India.",
 
-  // Natural language scoring instructions for Claude
+  // Natural language scoring instructions for Gemini
   scoringCriteria:
     "Prioritize jobs that match my tech stack closely. " +
     "Favor clients with verified payment methods and good hire rates. " +

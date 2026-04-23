@@ -76,6 +76,8 @@ Edit `config.mjs` to customize:
 
 ## Running the Tool
 
+**Repository**: `https://github.com/GurnoorSH/upwork-agent.git`
+
 ```bash
 # 1. Install Node.js (v18+ recommended)
 # 2. Install dependencies

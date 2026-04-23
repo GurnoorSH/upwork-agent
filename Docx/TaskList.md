@@ -19,6 +19,8 @@ Node.js CLI tool that scrapes Upwork job listings via RSS, enriches each job wit
 - [x] Create `package.json` with ES module config and dependencies
 - [x] Create `.env` with `GOOGLE_API_KEY` placeholder
 - [x] Create `.gitignore` (node_modules + .env)
+- [x] Initialize Git repository and commit files
+- [x] Create GitHub repository and push project to `main`
 
 ### 2. Configuration Module
 - [x] Create `config.mjs` with keywords, filters, profile, scoring criteria
@@ -59,8 +61,6 @@ Node.js CLI tool that scrapes Upwork job listings via RSS, enriches each job wit
 ## Change Log
 | Date       | Change |
 |------------|--------|
-| 2026-04-24 | Initial project scaffolding — all 6 source files created |
-| 2026-04-24 | Switched from Anthropic Claude to Google Gemini API per user request |
-| 2026-04-24 | Added devPlan.md and context.md documentation |
-| 2026-04-24 | Node.js not found on system — npm install blocked until installed |
 | 2026-04-24 | Reorganized documentation into `Docx/` folder and renamed files |
+| 2026-04-24 | Initialized Git repository and created initial commit |
+| 2026-04-24 | Created GitHub repository and pushed code to `https://github.com/GurnoorSH/upwork-agent.git` |
