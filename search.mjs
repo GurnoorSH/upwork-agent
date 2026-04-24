@@ -176,9 +176,11 @@ function extractJobsFromPage(selectors) {
 
 /**
  * Fetch and parse Upwork job listings by scraping the search page.
+ * Returns both the jobs array AND the browser instance so the
+ * enricher can reuse the same session (Cloudflare cookies).
  *
  * @param {object} config - The user config object
- * @returns {Promise<Array<{title: string, link: string, pubDate: string, description: string}>>}
+ * @returns {Promise<{jobs: Array<{title: string, link: string, pubDate: string, description: string}>, browser: object}>}
  */
 export async function fetchJobUrls(config) {
   const url = buildSearchUrl(config);
@@ -284,17 +286,21 @@ export async function fetchJobUrls(config) {
     const jobs = await page.evaluate(extractJobsFromPage, SELECTORS);
     console.log(`  ✅ Scraped ${jobs.length} job cards from search page.`);
 
-    return jobs;
+    // Close the search tab but keep the browser alive for enricher
+    await page.close().catch(() => {});
 
-  } finally {
-    // Clean up: close the tab we opened (but don't close the user's browser)
+    // Return both jobs and the browser instance
+    // The enricher will reuse this browser and close it when done
+    return { jobs, browser };
+
+  } catch (err) {
+    // On error, clean up the browser before re-throwing
     if (browserObj?.connected) {
-      if (page) {
-        await page.close().catch(() => {});
-      }
       browserObj.browser.disconnect();
     } else if (browserObj?.browser) {
       await browserObj.browser.close().catch(() => {});
     }
+    throw err;
   }
 }
+

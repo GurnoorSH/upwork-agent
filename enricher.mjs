@@ -1,18 +1,33 @@
 /**
  * Job Enrichment Module (enricher.mjs)
  *
- * Fetches each Upwork job page, extracts __NEXT_DATA__ JSON,
- * and enriches the job object with client quality signals.
+ * Opens Puppeteer pages on the shared browser instance (from search.mjs)
+ * to fetch each Upwork job page. This reuses the real Chrome session
+ * and Cloudflare cookies, avoiding bot detection.
+ *
+ * Extracts __NEXT_DATA__ JSON from each job page and enriches the
+ * job object with client quality signals (spend, hire rate, etc.).
+ *
+ * The browser is closed at the end of enrichAll() — this module
+ * owns the browser lifecycle after search.mjs hands it off.
  */
 
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import { writeFile } from "fs/promises";
+import { join } from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const DELAY_MS = 2500;
+const PAGE_TIMEOUT_MS = 30_000;
+
+// Resource types to block during enrichment (we only need __NEXT_DATA__)
+const BLOCKED_RESOURCES = new Set([
+  "image", "stylesheet", "font", "media", "texttrack", "eventsource",
+  "websocket", "manifest", "other",
+]);
 
 /**
  * Sleep helper for rate limiting.
@@ -21,40 +36,6 @@ const DELAY_MS = 2500;
  */
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Attempt to extract the __NEXT_DATA__ JSON from the page HTML.
- * Tries regex first, falls back to cheerio.
- *
- * @param {string} html - The raw HTML of the job page
- * @returns {object|null} Parsed JSON or null
- */
-function extractNextData(html) {
-  // Attempt 1: Regex extraction
-  const regex = /<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i;
-  const match = html.match(regex);
-
-  if (match?.[1]) {
-    try {
-      return JSON.parse(match[1]);
-    } catch {
-      // Fall through to cheerio
-    }
-  }
-
-  // Attempt 2: Cheerio fallback
-  try {
-    const $ = cheerio.load(html);
-    const scriptContent = $("#__NEXT_DATA__").html();
-    if (scriptContent) {
-      return JSON.parse(scriptContent);
-    }
-  } catch {
-    // Extraction failed
-  }
-
-  return null;
 }
 
 /**
@@ -78,11 +59,14 @@ function extractJobFields(nextData) {
     clientReviewsCount: null,
     clientCountry: null,
     proposalsTier: null,
+    proposalCount: null,
     contractorTier: null,
     weeklyHours: null,
+    skills: null,
   };
 
-  // Try multiple root paths for the job data
+  // ── Find the root job data object ──
+  // Upwork nests this differently across page types
   const props = nextData?.props?.pageProps;
   const jobData =
     props?.job ||
@@ -100,65 +84,85 @@ function extractJobFields(nextData) {
     return result;
   }
 
-  // --- Job Details ---
+  // Also try a separate posting data path
+  const postingData =
+    jobData?.jobPostingData ||
+    jobData?.posting ||
+    jobData;
+
+  // ── Job Details ──
   result.fullDescription =
     jobData?.description ||
     jobData?.jobDescription ||
+    postingData?.description ||
     jobData?.attrs?.description ||
     null;
 
-  // Budget
-  const budget = jobData?.budget || jobData?.amount || jobData?.fixedAmount;
+  // ── Budget ──
+  const budget =
+    postingData?.budget ||
+    jobData?.budget ||
+    jobData?.amount ||
+    jobData?.fixedAmount;
+
   if (typeof budget === "object" && budget !== null) {
     result.budgetAmount = budget?.amount ?? null;
-    result.budgetMin = budget?.min ?? budget?.minimum ?? null;
-    result.budgetMax = budget?.max ?? budget?.maximum ?? null;
+    result.budgetMin = budget?.min ?? budget?.minimum ?? budget?.from ?? null;
+    result.budgetMax = budget?.max ?? budget?.maximum ?? budget?.to ?? null;
   } else if (typeof budget === "number") {
     result.budgetAmount = budget;
   }
 
-  // Also check top-level amount fields
   if (result.budgetAmount === null) {
     result.budgetAmount =
       jobData?.fixedAmount?.amount ??
+      postingData?.hourlyBudget?.from ??
       jobData?.hourlyBudget?.amount ??
       jobData?.estimatedBudget?.amount ??
       null;
   }
 
-  // --- Client Info ---
+  // ── Client / Buyer Info ──
+  // Upwork uses "buyer" in __NEXT_DATA__, "client" in some variations
   const client =
-    jobData?.client ||
     jobData?.buyer ||
+    jobData?.client ||
     jobData?.clientInfo ||
     jobData?.attrs?.client ||
     {};
 
   // Total spent
   const totalSpent =
-    client?.totalSpent || client?.spentAmount || client?.stats?.totalSpent;
+    client?.totalSpent ||
+    client?.totalCharges ||
+    client?.spentAmount ||
+    client?.stats?.totalSpent;
+
   if (typeof totalSpent === "object" && totalSpent !== null) {
     result.clientTotalSpent = totalSpent?.amount ?? null;
   } else if (typeof totalSpent === "number") {
     result.clientTotalSpent = totalSpent;
   }
 
-  // Hires and posted jobs
+  // Hires
   result.clientTotalHires =
     client?.totalHires ??
     client?.hires ??
     client?.stats?.totalHires ??
     null;
 
+  // Posted jobs
   result.clientTotalPostedJobs =
     client?.totalPostedJobs ??
     client?.jobsPosted ??
     client?.stats?.totalPostedJobs ??
     null;
 
-  // Hire rate — calculate if not directly available
+  // Hire rate
   result.clientHireRate =
-    client?.hireRate ?? client?.stats?.hireRate ?? null;
+    client?.hireRate ??
+    client?.stats?.hireRate ??
+    null;
 
   if (
     result.clientHireRate === null &&
@@ -172,8 +176,9 @@ function extractJobFields(nextData) {
     ).toFixed(1);
   }
 
-  // Rating
+  // Rating / feedback score
   result.clientScore =
+    client?.feedbackScore ??
     client?.score ??
     client?.rating ??
     client?.feedback?.score ??
@@ -190,28 +195,51 @@ function extractJobFields(nextData) {
   // Location
   result.clientCountry =
     client?.location?.country ??
+    client?.countryName ??
     client?.country ??
     client?.location?.name ??
     null;
 
-  // --- Proposals & Tier ---
+  // ── Proposals ──
   result.proposalsTier =
+    postingData?.proposalsTier ??
     jobData?.proposalsTier ??
     jobData?.applicants?.proposalsTier ??
     jobData?.attrs?.proposalsTier ??
     null;
 
+  result.proposalCount =
+    postingData?.totalApplicants ??
+    jobData?.totalApplicants ??
+    null;
+
+  // ── Tier & Hours ──
   result.contractorTier =
+    postingData?.contractorTier ??
     jobData?.contractorTier ??
     jobData?.tierLabel ??
     jobData?.attrs?.contractorTier ??
     null;
 
   result.weeklyHours =
+    postingData?.weeklyHours ??
     jobData?.weeklyHours ??
     jobData?.engagement?.hours ??
     jobData?.attrs?.weeklyHours ??
     null;
+
+  // ── Skills ──
+  const rawSkills =
+    postingData?.skills ??
+    jobData?.skills ??
+    jobData?.attrs?.skills ??
+    null;
+
+  if (Array.isArray(rawSkills)) {
+    result.skills = rawSkills
+      .map((s) => (typeof s === "string" ? s : s?.name ?? s?.prettyName ?? null))
+      .filter(Boolean);
+  }
 
   return result;
 }
@@ -248,35 +276,69 @@ export function parseProposalCount(tier) {
 }
 
 /**
- * Enrich a single job object by fetching its page and extracting data.
+ * Enrich a single job object by opening a Puppeteer page on the
+ * shared browser and extracting __NEXT_DATA__ JSON.
  *
  * @param {object} jobObj - The basic job object from search
+ * @param {object} browser - The Puppeteer browser instance
+ * @param {boolean} isFirst - If true, dump raw nextData to file for debugging
  * @returns {Promise<object>} The enriched job object
  */
-export async function enrichJob(jobObj) {
+async function enrichJob(jobObj, browser, isFirst) {
+  let page;
   try {
-    const response = await fetch(jobObj.link, {
-      headers: {
-        "User-Agent": USER_AGENT,
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "follow",
+    page = await browser.newPage();
+
+    // Block heavy resources — we only need the HTML with __NEXT_DATA__
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      if (BLOCKED_RESOURCES.has(req.resourceType())) {
+        req.abort();
+      } else {
+        req.continue();
+      }
     });
 
-    if (!response.ok) {
-      console.log(
-        `    ⚠️  HTTP ${response.status} for ${jobObj.title.slice(0, 50)}...`
-      );
+    await page.goto(jobObj.link, {
+      waitUntil: "domcontentloaded",
+      timeout: PAGE_TIMEOUT_MS,
+    });
+
+    // Check for Cloudflare challenge
+    const title = await page.title();
+    if (
+      title.toLowerCase().includes("just a moment") ||
+      title.toLowerCase().includes("attention required")
+    ) {
+      console.log(`    ⚠️  Cloudflare blocked enrichment for: ${jobObj.title.slice(0, 50)}...`);
       return { ...jobObj, enriched: false };
     }
 
-    const html = await response.text();
-    const nextData = extractNextData(html);
+    // Extract __NEXT_DATA__ from the DOM
+    const nextData = await page.evaluate(() => {
+      const el = document.getElementById("__NEXT_DATA__");
+      if (!el) return null;
+      try {
+        return JSON.parse(el.textContent);
+      } catch {
+        return null;
+      }
+    });
 
     if (!nextData) {
       console.log(`    ⚠️  No __NEXT_DATA__ found for: ${jobObj.title.slice(0, 50)}...`);
       return { ...jobObj, enriched: false };
+    }
+
+    // Dump the first job's raw JSON for path verification
+    if (isFirst) {
+      try {
+        const samplePath = join(__dirname, "Docx", "nextdata-sample.json");
+        await writeFile(samplePath, JSON.stringify(nextData, null, 2), "utf-8");
+        console.log(`    📋 Wrote raw __NEXT_DATA__ to Docx/nextdata-sample.json`);
+      } catch (writeErr) {
+        console.log(`    ⚠️  Could not write sample JSON: ${writeErr.message}`);
+      }
     }
 
     const fields = extractJobFields(nextData);
@@ -284,39 +346,55 @@ export async function enrichJob(jobObj) {
     return {
       ...jobObj,
       ...fields,
-      proposalCount: parseProposalCount(fields.proposalsTier),
+      proposalCount: fields.proposalCount ?? parseProposalCount(fields.proposalsTier),
       enriched: true,
     };
+
   } catch (err) {
     console.log(
       `    ⚠️  Enrichment failed for "${jobObj.title.slice(0, 50)}...": ${err.message}`
     );
     return { ...jobObj, enriched: false };
+
+  } finally {
+    // Always close the tab, never the browser
+    if (page) {
+      await page.close().catch(() => {});
+    }
   }
 }
 
 /**
  * Enrich all jobs sequentially with rate limiting.
+ * Closes the browser after all enrichment is complete.
  *
  * @param {Array<object>} jobsList - Array of basic job objects
+ * @param {object} browser - The Puppeteer browser instance from search.mjs
  * @returns {Promise<Array<object>>} Array of enriched job objects
  */
-export async function enrichAll(jobsList) {
+export async function enrichAll(jobsList, browser) {
   const enriched = [];
 
-  for (let i = 0; i < jobsList.length; i++) {
-    const job = jobsList[i];
-    console.log(
-      `  Enriching job ${i + 1}/${jobsList.length}: ${job.title.slice(0, 60)}...`
-    );
+  try {
+    for (let i = 0; i < jobsList.length; i++) {
+      const job = jobsList[i];
+      console.log(
+        `  Enriching job ${i + 1}/${jobsList.length}: ${job.title.slice(0, 60)}...`
+      );
 
-    const result = await enrichJob(job);
-    enriched.push(result);
+      const isFirst = (i === 0);
+      const result = await enrichJob(job, browser, isFirst);
+      enriched.push(result);
 
-    // Rate limit — always wait between requests
-    if (i < jobsList.length - 1) {
-      await sleep(DELAY_MS);
+      // Rate limit — always wait between requests
+      if (i < jobsList.length - 1) {
+        await sleep(DELAY_MS);
+      }
     }
+  } finally {
+    // Browser lifecycle ends here — close it regardless of success/failure
+    console.log("\n  🔒 Closing browser...");
+    await browser.close().catch(() => {});
   }
 
   return enriched;

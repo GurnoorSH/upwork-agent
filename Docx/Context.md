@@ -53,11 +53,20 @@ Both modes detect Cloudflare's "Just a moment..." page and wait up to 120s for t
 
 ### Current Status (2026-04-24)
 - ✅ `search.mjs` — Puppeteer-based search scraper, connects to user's Chrome
-- ✅ `index.mjs` updated — `--dry-run` and `--launch` flags added
-- ✅ `package.json` updated — added `puppeteer`, `puppeteer-extra`, `puppeteer-extra-plugin-stealth`; removed `fast-xml-parser`
-- ✅ `npm run dry-run` works — scraped 10 jobs successfully with `--launch` mode
-- ⚠️ Enrichment returned 0/10 enriched — `enricher.mjs` fetches job pages via plain `node-fetch` which may also be getting blocked by Cloudflare. This is the **next problem to solve**.
-- ❌ Full scoring pipeline untested (blocked on enrichment)
+- ✅ `enricher.mjs` — Rewritten to use Puppeteer pages on the **shared browser** (same session as search). Blocks images/CSS/fonts for speed. Dumps first job's `__NEXT_DATA__` to `Docx/nextdata-sample.json` for path debugging.
+- ✅ `index.mjs` updated — `--dry-run` and `--launch` flags; destructures `{ jobs, browser }` from search, passes browser to enricher
+- ✅ `package.json` updated — added `puppeteer`, `puppeteer-extra`, `puppeteer-extra-plugin-stealth`; removed `fast-xml-parser`, `cheerio` (no longer needed in enricher)
+- ✅ Removed `node-fetch` from enricher — all HTTP goes through Puppeteer now
+- ⏳ Needs testing: run `npm run dry-run --launch` and check if enrichment succeeds
+- ❌ Full scoring pipeline untested (blocked on enrichment verification)
+
+### Browser Lifecycle
+```
+search.mjs:  launch/connect browser → scrape search → close search tab → return { jobs, browser }
+index.mjs:   receive { jobs, browser } → pass browser to enrichAll()
+enricher.mjs: for each job → open tab → extract __NEXT_DATA__ → close tab → finally → browser.close()
+```
+`browser.close()` is called exactly once, at the end of `enrichAll()` in `enricher.mjs`.
 
 ### DOM Selectors (extracted 2026-04-24)
 
@@ -156,6 +165,7 @@ node index.mjs --dry-run --launch
 
 ## Known Issues / Next Steps
 
-1. **Enrichment blocked** — `enricher.mjs` uses plain `node-fetch` to fetch individual job pages. Likely also being blocked by Cloudflare. Needs same Puppeteer treatment or session cookie forwarding.
-2. **Cloudflare fragility** — Even with persistent profiles, Cloudflare may re-challenge. No automated CAPTCHA solving; user must intervene.
+1. **Field path verification** — `enricher.mjs` uses best-guess paths for `__NEXT_DATA__` fields (`buyer.totalSpent.amount`, `buyer.hireRate`, etc.). After first successful run, check `Docx/nextdata-sample.json` to see the actual structure and fix any wrong paths.
+2. **Cloudflare fragility** — Even with shared sessions, Cloudflare may re-challenge individual job pages. If a job shows `enriched: false` due to "Just a moment" title, it means Cloudflare blocked that specific page.
 3. **Selector maintenance** — Upwork obfuscates CSS classes and may change `data-test` attributes at any time. Keep `Docx/dom-inspector.js` handy.
+4. **Full scoring pipeline** — Once enrichment is verified, test `npm start` (without `--dry-run`) to exercise the Gemini scoring path.

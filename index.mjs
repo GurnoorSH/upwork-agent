@@ -97,8 +97,11 @@ async function main() {
 
   // 1. Fetch job listings (scraping the search page)
   let rawJobs;
+  let browser;
   try {
-    rawJobs = await fetchJobUrls(config);
+    const result = await fetchJobUrls(config);
+    rawJobs = result.jobs;
+    browser = result.browser;
   } catch (err) {
     console.error(`\n❌ Search page scrape error: ${err.message}`);
     process.exit(1);
@@ -106,13 +109,14 @@ async function main() {
 
   if (!rawJobs.length) {
     console.log("No jobs found. Try different keywords.");
+    if (browser) await browser.close().catch(() => {});
     process.exit(0);
   }
 
   console.log(`\n📋 Found ${rawJobs.length} jobs. Enriching with client data...\n`);
 
-  // 2. Enrich (sequential with rate limiting)
-  const enrichedJobs = await enrichAll(rawJobs);
+  // 2. Enrich (sequential with rate limiting — browser is closed inside enrichAll)
+  const enrichedJobs = await enrichAll(rawJobs, browser);
 
   // 3. Hard filters
   let filtered = enrichedJobs;
