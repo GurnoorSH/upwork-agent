@@ -23,12 +23,6 @@ const __dirname = dirname(__filename);
 const DELAY_MS = 2500;
 const PAGE_TIMEOUT_MS = 30_000;
 
-// Resource types to block during enrichment (we only need __NEXT_DATA__)
-const BLOCKED_RESOURCES = new Set([
-  "image", "stylesheet", "font", "media", "texttrack", "eventsource",
-  "websocket", "manifest", "other",
-]);
-
 /**
  * Sleep helper for rate limiting.
  * @param {number} ms
@@ -287,18 +281,15 @@ export function parseProposalCount(tier) {
 async function enrichJob(jobObj, browser, isFirst) {
   let page;
   try {
+    // Check if browser is still alive
+    if (!browser.connected) {
+      console.log("    ❌ Browser disconnected — cannot enrich.");
+      return { ...jobObj, enriched: false };
+    }
+
     page = await browser.newPage();
 
-    // Block heavy resources — we only need the HTML with __NEXT_DATA__
-    await page.setRequestInterception(true);
-    page.on("request", (req) => {
-      if (BLOCKED_RESOURCES.has(req.resourceType())) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
+    // Note: NOT using request interception — it can break Cloudflare clearance cookies
     await page.goto(jobObj.link, {
       waitUntil: "domcontentloaded",
       timeout: PAGE_TIMEOUT_MS,

@@ -238,16 +238,49 @@ export async function fetchJobUrls(config) {
       console.log("  ⏳ Waiting up to 120 seconds...");
       console.log("");
 
-      // Wait for the challenge to be solved (page title changes)
       await page.waitForFunction(
         () => !document.title.toLowerCase().includes("just a moment"),
         { timeout: 120_000 }
       );
 
       console.log("  ✅ Cloudflare challenge solved! Continuing...");
-      // Wait for the search page to finish loading
       await page.waitForNavigation({ waitUntil: "networkidle2", timeout: PAGE_LOAD_TIMEOUT_MS })
-        .catch(() => {}); // navigation may already be done
+        .catch(() => {});
+    }
+
+    // Check if we're logged out (launched browser has no session)
+    const isLoggedOut = await page.evaluate(() => {
+      const body = document.body?.innerText || "";
+      // Logged-out pages show these nav links
+      return body.includes("Log in") && body.includes("Sign up");
+    });
+
+    if (isLoggedOut) {
+      console.log("");
+      console.log("  🔐 Not logged in to Upwork!");
+      console.log("  👆 Please log in to your account in the browser window...");
+      console.log("  ⏳ Waiting up to 120 seconds...");
+      console.log("");
+
+      // Navigate to login page
+      await page.goto("https://www.upwork.com/ab/account-security/login", {
+        waitUntil: "networkidle2",
+        timeout: PAGE_LOAD_TIMEOUT_MS,
+      });
+
+      // Wait for login to complete (URL changes away from login page)
+      await page.waitForFunction(
+        () => !window.location.href.includes("/login"),
+        { timeout: 120_000 }
+      );
+
+      console.log("  ✅ Login detected! Navigating to search...");
+
+      // Re-navigate to the search page now that we're authenticated
+      await page.goto(url, {
+        waitUntil: "networkidle2",
+        timeout: PAGE_LOAD_TIMEOUT_MS,
+      });
     }
 
     // Wait for job cards to render
@@ -286,8 +319,9 @@ export async function fetchJobUrls(config) {
     const jobs = await page.evaluate(extractJobsFromPage, SELECTORS);
     console.log(`  ✅ Scraped ${jobs.length} job cards from search page.`);
 
-    // Close the search tab but keep the browser alive for enricher
-    await page.close().catch(() => {});
+    // DON'T close the search tab — closing the last tab kills a launched browser.
+    // Navigate to about:blank to free memory while keeping the browser alive.
+    await page.goto("about:blank").catch(() => {});
 
     // Return both jobs and the browser instance
     // The enricher will reuse this browser and close it when done
