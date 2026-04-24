@@ -20,17 +20,16 @@ import { dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const DELAY_MS = 2500;
 const PAGE_TIMEOUT_MS = 30_000;
 
 /**
- * Sleep helper for rate limiting.
- * @param {number} ms
+ * Jitter helper for human-like randomized delays.
+ * @param {number} min 
+ * @param {number} max 
  * @returns {Promise<void>}
  */
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const jitter = (min = 1500, max = 4500) =>
+  new Promise(r => setTimeout(r, Math.random() * (max - min) + min));
 
 /**
  * Navigate nested objects safely to find job data.
@@ -270,89 +269,94 @@ export function parseProposalCount(tier) {
 }
 
 /**
- * Enrich a single job object by opening a Puppeteer page on the
- * shared browser and extracting __NEXT_DATA__ JSON.
+ * Enrich a single job object by navigating the shared page and extracting __NEXT_DATA__ JSON.
  *
  * @param {object} jobObj - The basic job object from search
- * @param {object} browser - The Puppeteer browser instance
+ * @param {object} page - The shared Puppeteer page instance
  * @param {boolean} isFirst - If true, dump raw nextData to file for debugging
  * @returns {Promise<object>} The enriched job object
  */
-async function enrichJob(jobObj, browser, isFirst) {
-  let page;
-  try {
-    // Check if browser is still alive
-    if (!browser.connected) {
-      console.log("    ❌ Browser disconnected — cannot enrich.");
-      return { ...jobObj, enriched: false };
-    }
+async function enrichJob(jobObj, page, isFirst) {
+  const retries = 3;
 
-    page = await browser.newPage();
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      console.log(`    🔗 Navigating to: ${jobObj.title.slice(0, 40)}...`);
+      
+      await page.goto(jobObj.link, {
+        waitUntil: "networkidle2",
+        timeout: PAGE_TIMEOUT_MS,
+      });
 
-    // Note: NOT using request interception — it can break Cloudflare clearance cookies
-    await page.goto(jobObj.link, {
-      waitUntil: "domcontentloaded",
-      timeout: PAGE_TIMEOUT_MS,
-    });
-
-    // Check for Cloudflare challenge
-    const title = await page.title();
-    if (
-      title.toLowerCase().includes("just a moment") ||
-      title.toLowerCase().includes("attention required")
-    ) {
-      console.log(`    ⚠️  Cloudflare blocked enrichment for: ${jobObj.title.slice(0, 50)}...`);
-      return { ...jobObj, enriched: false };
-    }
-
-    // Extract __NEXT_DATA__ from the DOM
-    const nextData = await page.evaluate(() => {
-      const el = document.getElementById("__NEXT_DATA__");
-      if (!el) return null;
-      try {
-        return JSON.parse(el.textContent);
-      } catch {
-        return null;
+      // Check for Cloudflare challenge or blank page
+      const title = await page.title();
+      const content = await page.content();
+      
+      if (
+        title.toLowerCase().includes("just a moment") ||
+        title.toLowerCase().includes("attention required") ||
+        content.includes("cloudflare")
+      ) {
+        const backoff = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
+        console.warn(`    🛡️  Cloudflare hit on attempt ${attempt + 1}, waiting ${backoff/1000}s`);
+        await new Promise(r => setTimeout(r, backoff));
+        continue;
       }
-    });
 
-    if (!nextData) {
-      console.log(`    ⚠️  No __NEXT_DATA__ found for: ${jobObj.title.slice(0, 50)}...`);
-      return { ...jobObj, enriched: false };
-    }
+      // Extract __NEXT_DATA__ from the DOM
+      const nextData = await page.evaluate(() => {
+        const el = document.getElementById("__NEXT_DATA__");
+        if (!el) return null;
+        try {
+          return JSON.parse(el.textContent);
+        } catch {
+          return null;
+        }
+      });
 
-    // Dump the first job's raw JSON for path verification
-    if (isFirst) {
-      try {
-        const samplePath = join(__dirname, "Docx", "nextdata-sample.json");
-        await writeFile(samplePath, JSON.stringify(nextData, null, 2), "utf-8");
-        console.log(`    📋 Wrote raw __NEXT_DATA__ to Docx/nextdata-sample.json`);
-      } catch (writeErr) {
-        console.log(`    ⚠️  Could not write sample JSON: ${writeErr.message}`);
+      if (!nextData) {
+        const isBlank = await page.evaluate(() => document.body.innerText.trim().length === 0);
+        if (isBlank) {
+          console.log(`    ❌ Page went blank. This is likely a Cloudflare block.`);
+        } else {
+          console.log(`    ⚠️  No __NEXT_DATA__ found (maybe selectors changed).`);
+        }
+        return { ...jobObj, enriched: false };
       }
-    }
 
-    const fields = extractJobFields(nextData);
+      // Dump the first job's raw JSON for path verification
+      if (isFirst) {
+        try {
+          const samplePath = join(__dirname, "Docx", "nextdata-sample.json");
+          await writeFile(samplePath, JSON.stringify(nextData, null, 2), "utf-8");
+          console.log(`    📋 Wrote raw __NEXT_DATA__ to Docx/nextdata-sample.json`);
+        } catch (writeErr) {
+          console.log(`    ⚠️  Could not write sample JSON: ${writeErr.message}`);
+        }
+      }
 
-    return {
-      ...jobObj,
-      ...fields,
-      proposalCount: fields.proposalCount ?? parseProposalCount(fields.proposalsTier),
-      enriched: true,
-    };
+      const fields = extractJobFields(nextData);
 
-  } catch (err) {
-    console.log(
-      `    ⚠️  Enrichment failed for "${jobObj.title.slice(0, 50)}...": ${err.message}`
-    );
-    return { ...jobObj, enriched: false };
+      return {
+        ...jobObj,
+        ...fields,
+        proposalCount: fields.proposalCount ?? parseProposalCount(fields.proposalsTier),
+        enriched: true,
+      };
 
-  } finally {
-    // Always close the tab, never the browser
-    if (page) {
-      await page.close().catch(() => {});
+    } catch (err) {
+      console.log(
+        `    ⚠️  Enrichment failed for "${jobObj.title.slice(0, 50)}...": ${err.message}`
+      );
+      if (attempt < retries - 1) {
+        console.log(`    🔄 Retrying (${attempt + 1}/${retries})...`);
+        await jitter(2000, 5000);
+      }
     }
   }
+
+  // Fallback if all retries fail
+  return { ...jobObj, enriched: false };
 }
 
 /**
@@ -365,24 +369,67 @@ async function enrichJob(jobObj, browser, isFirst) {
  */
 export async function enrichAll(jobsList, browser) {
   const enriched = [];
+  let page;
 
   try {
-    for (let i = 0; i < jobsList.length; i++) {
-      const job = jobsList[i];
-      console.log(
-        `  Enriching job ${i + 1}/${jobsList.length}: ${job.title.slice(0, 60)}...`
-      );
+    if (!browser.connected) {
+      console.log("  ❌ Browser disconnected — cannot enrich.");
+      return jobsList.map((j) => ({ ...j, enriched: false }));
+    }
+
+    page = await browser.newPage();
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+
+    let rateLimited = false;
+    page.on('response', response => {
+      if (response.status() === 429) {
+        console.warn('    ⚠️  Rate limited (HTTP 429) detected');
+        rateLimited = true;
+      }
+    });
+
+    // Shuffle the enrichment queue to avoid predictable patterns
+    const shuffled = [...jobsList].sort(() => Math.random() - 0.5);
+    let failedCount = 0;
+
+    for (let i = 0; i < shuffled.length; i++) {
+      const job = shuffled[i];
+      console.log(`\n  Enriching job ${i + 1}/${shuffled.length}: ${job.title.slice(0, 60)}...`);
 
       const isFirst = (i === 0);
-      const result = await enrichJob(job, browser, isFirst);
+      const result = await enrichJob(job, page, isFirst);
       enriched.push(result);
 
-      // Rate limit — always wait between requests
-      if (i < jobsList.length - 1) {
-        await sleep(DELAY_MS);
+      if (!result.enriched) {
+        failedCount++;
+      }
+
+      // Session health check: abort if >30% fail (min 3 failures)
+      const failRatio = failedCount / (i + 1);
+      if (i >= 3 && failRatio > 0.3) {
+        console.log(`\n  🚨 Aborting enrichment: Failure rate too high (${Math.round(failRatio * 100)}%). Session may be blocked.`);
+        // Mark remaining jobs as unenriched
+        for (let j = i + 1; j < shuffled.length; j++) {
+          enriched.push({ ...shuffled[j], enriched: false });
+        }
+        break;
+      }
+
+      // Jitter delay between requests
+      if (i < shuffled.length - 1) {
+        if (rateLimited) {
+          console.log('    ⏳ Backing off due to rate limits...');
+          await jitter(5000, 10000);
+          rateLimited = false; // Reset flag for next request
+        } else {
+          await jitter(1500, 4500);
+        }
       }
     }
   } finally {
+    if (page) {
+      await page.close().catch(() => {});
+    }
     // Browser lifecycle ends here — close it regardless of success/failure
     console.log("\n  🔒 Closing browser...");
     await browser.close().catch(() => {});

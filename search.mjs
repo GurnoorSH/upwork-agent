@@ -20,9 +20,9 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import fetch from "node-fetch";
-import { join } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
+import fs from "fs";
 
 puppeteer.use(StealthPlugin());
 
@@ -34,7 +34,7 @@ const REMOTE_DEBUGGING_PORT = 9222;
 const PAGE_LOAD_TIMEOUT_MS = 60_000;
 const CARD_WAIT_TIMEOUT_MS = 30_000;
 const POST_RENDER_SETTLE_MS = 3_000;
-const USER_DATA_DIR = join(__dirname, ".chrome-profile");
+const USER_DATA_DIR = join(__dirname, "chrome_session");
 
 // ── CLI mode detection ─────────────────────────────────────
 const USE_LAUNCH_MODE = process.argv.includes("--launch");
@@ -117,17 +117,25 @@ async function launchFreshChrome() {
   console.log("  🚀 Launching Chrome with persistent profile...");
   console.log(`     Profile dir: ${USER_DATA_DIR}`);
 
+  // Ensure the directory exists
+  if (!fs.existsSync(USER_DATA_DIR)) {
+    fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+  }
+
   const browser = await puppeteer.launch({
     headless: false,   // MUST be headed to solve Cloudflare on first run
+    userDataDir: USER_DATA_DIR, // Use top-level option for better reliability
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-blink-features=AutomationControlled",
       "--disable-infobars",
       "--window-size=1920,1080",
-      `--user-data-dir=${USER_DATA_DIR}`,
+      "--start-maximized",
+      "--no-first-run",
+      "--no-default-browser-check",
     ],
-    defaultViewport: { width: 1920, height: 1080 },
+    defaultViewport: null, // Allow window size to dictate viewport
   });
 
   return { browser, connected: false };

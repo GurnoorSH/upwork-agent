@@ -47,14 +47,14 @@ Learned from how Chrome extensions bypass Cloudflare: they run inside the user's
 | Mode | How to Use | When |
 |------|-----------|------|
 | **Connect** (default) | Start Chrome with `chrome.exe --remote-debugging-port=9222`, then run the scraper | Best for daily use — reuses your session, no challenges |
-| **Launch** (`--launch` flag) | `node index.mjs --dry-run --launch` | Launches headed Chrome with persistent `.chrome-profile/` dir. May need to solve Cloudflare on first run |
+| **Launch** (`--launch` flag) | `node index.mjs --dry-run --launch` | Launches headed Chrome with persistent `chrome_session/` dir. May need to solve Cloudflare on first run |
 
 Both modes detect Cloudflare's "Just a moment..." page and wait up to 120s for the user to solve it.
 
 ### Current Status (2026-04-24)
-- ✅ `search.mjs` — Puppeteer-based search scraper, connects to user's Chrome
-- ✅ `enricher.mjs` — Rewritten to use Puppeteer pages on the **shared browser** (same session as search). Blocks images/CSS/fonts for speed. Dumps first job's `__NEXT_DATA__` to `Docx/nextdata-sample.json` for path debugging.
-- ✅ `index.mjs` updated — `--dry-run` and `--launch` flags; destructures `{ jobs, browser }` from search, passes browser to enricher
+- ✅ `search.mjs` — Puppeteer-based search scraper, connects to user's Chrome. Launches with `userDataDir` set to `chrome_session` for persistent logins.
+- ✅ `enricher.mjs` — Sequential enrichment with `networkidle2` wait and custom User-Agent to bypass "blank page" (Cloudflare silent block).
+- ✅ `index.mjs` updated — `--dry-run` and `--launch` flags; destructures `{ jobs, browser }` from search, passes browser to enrichAll()
 - ✅ `package.json` updated — added `puppeteer`, `puppeteer-extra`, `puppeteer-extra-plugin-stealth`; removed `fast-xml-parser`, `cheerio` (no longer needed in enricher)
 - ✅ Removed `node-fetch` from enricher — all HTTP goes through Puppeteer now
 - ⏳ Needs testing: run `npm run dry-run --launch` and check if enrichment succeeds
@@ -81,6 +81,23 @@ These are in the `SELECTORS` object at the top of `search.mjs`:
 | Description | `p.text-body-sm` | 🔴 Fragile (class-based) |
 
 If selectors break, run `Docx/dom-inspector.js` in browser DevTools on the search page.
+
+## Strategies to Mimic Human Behavior
+
+To bypass Cloudflare Enterprise and Upwork's WAF, the scraper employs several layers of stealth and human-mimicry:
+
+**Already Applied:**
+1. **Shared Session / Extension Approach:** Runs in a headed Chrome window with a persistent profile (`chrome_session`) or connects to the user's real browser via port 9222.
+2. **Stealth Plugin:** Uses `puppeteer-extra-plugin-stealth` to patch navigator webdriver flags and other basic bot fingerprints.
+3. **Realistic Viewports & Headers:** Avoids headless defaults; forces `headless: false`, sets typical window sizes, and overrides the User-Agent.
+
+**New Enhancements (Enricher):**
+4. **Jitter Delays:** Replaced fixed 2.5s sleeps with randomized delays (1500ms - 4500ms) between page loads to break metronomic timing signatures.
+5. **Adaptive Exponential Backoff:** When a soft block ("Just a moment" or blank page) is detected, the script backs off exponentially (5s, 10s, 20s) and retries up to 3 times instead of silently failing or waiting a flat 120s.
+6. **Tab Reuse:** Reuses a single `page` object across the entire enrichment loop instead of tearing down and building new tabs per job, mimicking a user clicking links in the same tab and reducing initialization fingerprinting.
+7. **Queue Shuffling:** Shuffles the order of job enrichment so the request pattern doesn't perfectly match the search results layout order.
+8. **Rate Limit Awareness:** Listens for HTTP 429 responses. If detected, dynamically increases the jitter delay for the next request (5s - 10s) to cool down.
+9. **Session Health Monitoring:** Tracks the ratio of failed enrichments. If >30% of requests fail after the first few attempts, it aborts the enrichment phase early to protect the session from being permanently burned.
 
 ## Key Design Decisions
 
@@ -110,7 +127,7 @@ Jobs below `minBudget` or above `maxProposals` are dropped before hitting the AP
 | `enricher.mjs` | Fetches individual job pages, extracts client signals from `__NEXT_DATA__` |
 | `scorer.mjs` | Sends jobs to Gemini with structured prompt, parses scored JSON response |
 | `.env` | `GOOGLE_API_KEY` (not committed to git) |
-| `.chrome-profile/` | Persistent Chrome profile for `--launch` mode (auto-created, gitignored) |
+| `chrome_session/` | Persistent Chrome profile for `--launch` mode (auto-created, gitignored) |
 | `Docx/context.md` | This file — project architecture, history, and design notes |
 | `Docx/dom-inspector.js` | DevTools script — paste into console on Upwork search page to discover current selectors |
 | `Docx/TaskList.md` | Task tracking and change log |
