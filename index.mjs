@@ -1,8 +1,13 @@
 /**
  * Upwork Job Scoring Agent — Main Entry Point
  *
- * Fetches Upwork RSS feed → enriches jobs with client data →
+ * Fetches Upwork search results → enriches jobs with client data →
  * scores with Google Gemini → prints ranked results.
+ *
+ * Flags:
+ *   --dry-run   Skip Gemini scoring and print enriched jobs instead
+ *   --launch    Launch a new headed Chrome instead of connecting to existing one
+ *               (use when Chrome isn't running with --remote-debugging-port=9222)
  */
 
 import "dotenv/config";
@@ -10,6 +15,9 @@ import config from "./config.mjs";
 import { fetchJobUrls } from "./rss.mjs";
 import { enrichAll, parseProposalCount } from "./scraper.mjs";
 import { scoreJobs } from "./scorer.mjs";
+
+// ── CLI flags ──────────────────────────────────────────────
+const DRY_RUN = process.argv.includes("--dry-run");
 
 // ── Verdict emoji mapping ──────────────────────────────────
 const VERDICT_EMOJI = { BID: "🔥", MAYBE: "📊", SKIP: "❌" };
@@ -51,16 +59,48 @@ function printJob(job) {
   console.log(`  🔗 ${job.url}`);
 }
 
+/**
+ * Print a single enriched job in dry-run mode (no Gemini scoring).
+ * @param {object} job
+ * @param {number} index
+ */
+function printDryRunJob(job, index) {
+  const sep = "━".repeat(50);
+  console.log(`\n${sep}`);
+  console.log(`#${index + 1}  ${job.title}`);
+  console.log(`  🔗 ${job.link}`);
+  console.log(`  📅 ${job.pubDate || "N/A"}`);
+  console.log(`  💰 Budget: ${fmtMoney(job.budgetAmount ?? job.budgetMin ?? null)}`);
+  console.log(
+    `  👤 Client spent: ${fmtMoney(job.clientTotalSpent)} | ` +
+    `Hires: ${job.clientTotalHires ?? "N/A"} | ` +
+    `Hire rate: ${job.clientHireRate ? `${job.clientHireRate}%` : "N/A"} | ` +
+    `Rating: ${job.clientScore ?? "N/A"}`
+  );
+  console.log(`  📝 Proposals: ${job.proposalsTier ?? job.proposalCount ?? "N/A"}`);
+  console.log(`  🌍 Country: ${job.clientCountry ?? "N/A"}`);
+  console.log(`  ✅ Enriched: ${job.enriched ? "Yes" : "No"}`);
+
+  const desc = (job.fullDescription || job.description || "").slice(0, 200);
+  if (desc) {
+    console.log(`  📄 ${desc}${desc.length >= 200 ? "..." : ""}`);
+  }
+}
+
 // ── Main ────────────────────────────────────────────────────
 async function main() {
-  console.log("\n🔍 Fetching Upwork RSS feed...\n");
+  if (DRY_RUN) {
+    console.log("\n🧪 DRY RUN MODE — Gemini scoring will be skipped\n");
+  }
 
-  // 1. Fetch RSS
+  console.log("\n🔍 Fetching Upwork job listings...\n");
+
+  // 1. Fetch job listings (scraping the search page)
   let rawJobs;
   try {
     rawJobs = await fetchJobUrls(config);
   } catch (err) {
-    console.error(`\n❌ RSS fetch error: ${err.message}`);
+    console.error(`\n❌ Search page scrape error: ${err.message}`);
     process.exit(1);
   }
 
@@ -96,6 +136,23 @@ async function main() {
   if (!filtered.length) {
     console.log("\n⚠️  All jobs filtered out. Try relaxing your filters.");
     process.exit(0);
+  }
+
+  // ── Dry-run: print enriched jobs and exit ──
+  if (DRY_RUN) {
+    console.log("\n" + "═".repeat(50));
+    console.log("  🧪  DRY RUN — ENRICHED JOBS (no Gemini scoring)");
+    console.log("═".repeat(50));
+
+    filtered.forEach((job, i) => printDryRunJob(job, i));
+
+    const enrichedCount = filtered.filter((j) => j.enriched).length;
+    console.log("\n" + "━".repeat(50));
+    console.log(
+      `\n📈 Summary: ${filtered.length} jobs after filtering, ` +
+      `${enrichedCount} successfully enriched\n`
+    );
+    return;
   }
 
   console.log(`\n🤖 Scoring ${filtered.length} jobs with Gemini...\n`);
