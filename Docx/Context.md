@@ -12,10 +12,10 @@ A Node.js CLI tool that automates the process of finding and evaluating Upwork j
 
 ```
 index.mjs          ← orchestrator: fetch → enrich → filter → score → display
-  ├── config.mjs   ← user preferences (keywords, filters, profile, scoring)
-  ├── rss.mjs      ← Puppeteer-based scraper (name kept for backward compat)
-  ├── scraper.mjs  ← job page fetching, __NEXT_DATA__ extraction, field mapping
-  └── scorer.mjs   ← Gemini API integration, prompt engineering, JSON parsing
+  ├── config.mjs    ← user preferences (keywords, filters, profile, scoring)
+  ├── search.mjs    ← Puppeteer-based job search page scraper
+  ├── enricher.mjs  ← job page fetching, __NEXT_DATA__ extraction, field mapping
+  └── scorer.mjs    ← Gemini API integration, prompt engineering, JSON parsing
 ```
 
 ### Data Flow
@@ -42,7 +42,7 @@ Upwork killed their RSS feed endpoint (`/ab/feed/jobs/rss`) in Aug 2024. It retu
 ### What Works Now (Chrome Extension Approach)
 Learned from how Chrome extensions bypass Cloudflare: they run inside the user's **real browser session** which is already trusted by Cloudflare.
 
-`rss.mjs` now has **two modes**:
+`search.mjs` has **two modes**:
 
 | Mode | How to Use | When |
 |------|-----------|------|
@@ -52,16 +52,16 @@ Learned from how Chrome extensions bypass Cloudflare: they run inside the user's
 Both modes detect Cloudflare's "Just a moment..." page and wait up to 120s for the user to solve it.
 
 ### Current Status (2026-04-24)
-- ✅ `rss.mjs` rewritten — Puppeteer-based, connects to user's Chrome
+- ✅ `search.mjs` — Puppeteer-based search scraper, connects to user's Chrome
 - ✅ `index.mjs` updated — `--dry-run` and `--launch` flags added
 - ✅ `package.json` updated — added `puppeteer`, `puppeteer-extra`, `puppeteer-extra-plugin-stealth`; removed `fast-xml-parser`
 - ✅ `npm run dry-run` works — scraped 10 jobs successfully with `--launch` mode
-- ⚠️ Enrichment returned 0/10 enriched — `scraper.mjs` fetches job pages via plain `node-fetch` which may also be getting blocked by Cloudflare. This is the **next problem to solve**.
+- ⚠️ Enrichment returned 0/10 enriched — `enricher.mjs` fetches job pages via plain `node-fetch` which may also be getting blocked by Cloudflare. This is the **next problem to solve**.
 - ❌ Full scoring pipeline untested (blocked on enrichment)
 
 ### DOM Selectors (extracted 2026-04-24)
 
-These are in the `SELECTORS` object at the top of `rss.mjs`:
+These are in the `SELECTORS` object at the top of `search.mjs`:
 
 | Purpose | Selector | Stability |
 |---------|----------|-----------|
@@ -97,8 +97,8 @@ Jobs below `minBudget` or above `maxProposals` are dropped before hitting the AP
 |------|---------|
 | `index.mjs` | Entry point — orchestrates the full pipeline, prints formatted results |
 | `config.mjs` | User configuration — keywords, job type, budget, profile, scoring criteria |
-| `rss.mjs` | Puppeteer-based search page scraper (replaces dead RSS). Connects to user's Chrome or launches headed browser |
-| `scraper.mjs` | Fetches job pages, extracts client signals from `__NEXT_DATA__` |
+| `search.mjs` | Puppeteer-based search page scraper. Connects to user's Chrome or launches headed browser |
+| `enricher.mjs` | Fetches individual job pages, extracts client signals from `__NEXT_DATA__` |
 | `scorer.mjs` | Sends jobs to Gemini with structured prompt, parses scored JSON response |
 | `.env` | `GOOGLE_API_KEY` (not committed to git) |
 | `.chrome-profile/` | Persistent Chrome profile for `--launch` mode (auto-created, gitignored) |
@@ -156,6 +156,6 @@ node index.mjs --dry-run --launch
 
 ## Known Issues / Next Steps
 
-1. **Enrichment blocked** — `scraper.mjs` uses plain `node-fetch` to fetch individual job pages. Likely also being blocked by Cloudflare. Needs same Puppeteer treatment or session cookie forwarding.
+1. **Enrichment blocked** — `enricher.mjs` uses plain `node-fetch` to fetch individual job pages. Likely also being blocked by Cloudflare. Needs same Puppeteer treatment or session cookie forwarding.
 2. **Cloudflare fragility** — Even with persistent profiles, Cloudflare may re-challenge. No automated CAPTCHA solving; user must intervene.
 3. **Selector maintenance** — Upwork obfuscates CSS classes and may change `data-test` attributes at any time. Keep `Docx/dom-inspector.js` handy.

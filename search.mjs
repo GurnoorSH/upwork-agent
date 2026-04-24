@@ -1,5 +1,5 @@
 /**
- * Upwork Job Search Scraper (replaces dead RSS feed)
+ * Upwork Job Search Module (search.mjs)
  *
  * Strategy (learned from how Chrome extensions bypass Cloudflare):
  * Extensions work because they run inside the user's REAL browser
@@ -13,7 +13,7 @@
  *   user-data-dir so cookies survive between runs. First run may
  *   require solving a Cloudflare challenge; subsequent runs reuse it.
  *
- * Output shape is identical to the old RSS module:
+ * Output shape:
  *   [{ title, link, pubDate, description }]
  */
 

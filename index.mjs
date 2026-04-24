@@ -12,8 +12,8 @@
 
 import "dotenv/config";
 import config from "./config.mjs";
-import { fetchJobUrls } from "./rss.mjs";
-import { enrichAll, parseProposalCount } from "./scraper.mjs";
+import { fetchJobUrls } from "./search.mjs";
+import { enrichAll, parseProposalCount } from "./enricher.mjs";
 import { scoreJobs } from "./scorer.mjs";
 
 // ── CLI flags ──────────────────────────────────────────────

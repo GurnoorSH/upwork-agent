@@ -1,5 +1,5 @@
 /**
- * Job Page Scraper & Enrichment Module
+ * Job Enrichment Module (enricher.mjs)
  *
  * Fetches each Upwork job page, extracts __NEXT_DATA__ JSON,
  * and enriches the job object with client quality signals.
@@ -250,7 +250,7 @@ export function parseProposalCount(tier) {
 /**
  * Enrich a single job object by fetching its page and extracting data.
  *
- * @param {object} jobObj - The basic job object from RSS
+ * @param {object} jobObj - The basic job object from search
  * @returns {Promise<object>} The enriched job object
  */
 export async function enrichJob(jobObj) {
