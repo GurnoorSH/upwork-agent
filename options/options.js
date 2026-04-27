@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProfilesTab();
   initTemplatesTab();
   initFiltersTab();
+  initAIFiltersTab();
   initSettingsTab();
 });
 
@@ -339,23 +340,157 @@ async function initFiltersTab() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// AI Filters
+// ══════════════════════════════════════════════════════════════
+
+async function initAIFiltersTab() {
+  const { aiSettings = {} } = await chrome.storage.sync.get('aiSettings');
+
+  const defaultPrompt = `You are an expert Upwork job filtering assistant. Your task is to analyze job postings and return ONLY high-quality, high-conversion opportunities. Ignore low-quality, risky, or time-wasting jobs.
+
+Select ONLY jobs that meet MOST of these GOOD criteria:
+
+Client Quality
+Payment verified
+4.5+ star rating (preferably 4.7+)
+Has spent $1,000+ (ideal: $10K+)
+Has hired before (hire rate 50%+)
+Leaves good feedback for freelancers
+Long-term client or repeat hiring pattern
+
+Budget Quality
+Fixed price: $200+ (ideal: $500+)
+Hourly: $15+/hr (ideal: $25+/hr+ depending on niche)
+Clear willingness to pay for quality
+Not “cheap” language
+
+Job Clarity
+Clear, detailed description
+Defined scope and deliverables
+Mentions tools/stack (Shopify, Figma, Webflow, etc.)
+Real business context (not vague ideas)
+
+Serious Intent Signals
+Mentions timeline or urgency
+Provides reference examples
+Uses professional language
+Not mass-posted or copy-paste job
+
+Project Type
+Long-term or repeat work preferred
+Ongoing support, scaling, or optimization work
+Real business (not “test”, “trial”, or “experiment”)
+
+Bonus Signals (HIGH priority)
+Mentions “expert”, “top talent”, or “long-term collaboration”
+Open to suggestions / values experience
+Has interviewed or hired recently
+Low competition (less than 15–20 proposals)
+
+STRICTLY REJECT jobs with these BAD signals:
+
+Low-Quality Clients
+No payment verified
+0 hires or very low hire rate (<20%)
+Poor reviews from freelancers
+History of disputes or bad behavior
+
+Bad Budget
+Extremely low budget ($5–$50 fixed)
+Hourly < $10/hr (unless clearly high volume/long-term)
+“Looking for cheapest”, “low budget”, “tight budget”
+
+Vague / Risky Jobs
+No clear scope
+One-line descriptions
+“Need a website” without details
+No mention of deliverables
+
+Time Wasters
+“Test project” with no real follow-up
+“Commission-only” or “profit sharing”
+Unrealistic expectations (e.g., “build Uber in $100”)
+Urgent + underpaid combo
+
+Red Flags
+Asking for free work/sample
+Outside payment requests
+Suspicious or spam-like wording
+Too many freelancers hired but no reviews given
+
+Output Format
+For each selected job, return:
+Title
+Budget
+Client Rating & Spend
+Why this is a GOOD job (2–3 bullet points)
+Match Score (1–10)
+
+Important Rule
+If a job has mixed signals, be strict — only include jobs that are clearly worth applying to.`;
+
+  document.getElementById('aiEnabled').checked = aiSettings.enabled || false;
+  document.getElementById('aiProvider').value = aiSettings.provider || 'openai';
+  document.getElementById('aiApiKey').value = aiSettings.apiKey || '';
+  document.getElementById('aiMinFixedBudget').value = aiSettings.minFixedBudget || '';
+  document.getElementById('aiMinHourlyRate').value = aiSettings.minHourlyRate || '';
+  document.getElementById('aiMinClientRating').value = aiSettings.minClientRating || '';
+  document.getElementById('aiMinClientSpend').value = aiSettings.minClientSpend || '';
+  document.getElementById('aiNiche').value = aiSettings.niche || '';
+  document.getElementById('aiSystemPrompt').value = aiSettings.systemPrompt || defaultPrompt;
+
+  document.getElementById('aiFiltersForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const enabled = document.getElementById('aiEnabled').checked;
+    const provider = document.getElementById('aiProvider').value;
+    const apiKey = document.getElementById('aiApiKey').value.trim();
+    const minFixedBudget = parseFloat(document.getElementById('aiMinFixedBudget').value) || undefined;
+    const minHourlyRate = parseFloat(document.getElementById('aiMinHourlyRate').value) || undefined;
+    const minClientRating = parseFloat(document.getElementById('aiMinClientRating').value) || undefined;
+    const minClientSpend = parseFloat(document.getElementById('aiMinClientSpend').value) || undefined;
+    const niche = document.getElementById('aiNiche').value.trim();
+    const systemPrompt = document.getElementById('aiSystemPrompt').value.trim();
+
+    await chrome.storage.sync.set({
+      aiSettings: {
+        enabled,
+        provider,
+        apiKey,
+        minFixedBudget,
+        minHourlyRate,
+        minClientRating,
+        minClientSpend,
+        niche,
+        systemPrompt
+      }
+    });
+
+    showToast('AI filtering settings saved!');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
 // General Settings
 // ══════════════════════════════════════════════════════════════
 
 async function initSettingsTab() {
   const { settings = {} } = await chrome.storage.sync.get('settings');
 
-  document.getElementById('pollInterval').value = String(settings.pollIntervalMin || 2);
+  document.getElementById('safeModeEnabled').checked = settings.safeModeEnabled !== false; // Default to true
+  document.getElementById('pollInterval').value = String(settings.pollIntervalMin || 15);
 
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const interval = parseInt(document.getElementById('pollInterval').value, 10);
-    const newSettings = { ...settings, pollIntervalMin: interval };
+    const safeMode = document.getElementById('safeModeEnabled').checked;
+    
+    const newSettings = { ...settings, pollIntervalMin: interval, safeModeEnabled: safeMode };
     await chrome.storage.sync.set({ settings: newSettings });
 
     // Update alarm interval
-    await chrome.runtime.sendMessage({ type: 'UPDATE_ALARM', interval });
+    await chrome.runtime.sendMessage({ type: 'UPDATE_ALARM', interval, safeMode });
 
     showToast('Settings saved!');
   });

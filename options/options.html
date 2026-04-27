@@ -12,7 +12,7 @@
     <!-- Sidebar Nav -->
     <nav class="sidebar">
       <div class="sidebar-header">
-        <img src="icons/icon48.png" alt="Logo" class="sidebar-logo">
+        <img src="../assets/icons/icon48.png" alt="Logo" class="sidebar-logo">
         <h2>Upwork Toolkit</h2>
       </div>
       <ul class="nav-list">
@@ -20,10 +20,13 @@
           <span class="nav-icon">🔍</span> Search Profiles
         </a></li>
         <li><a href="#" class="nav-item" data-tab="templates">
-          <span class="nav-icon">📝</span> Proposal Templates
+          <span class="nav-icon">📝</span> Draft Assistant
         </a></li>
         <li><a href="#" class="nav-item" data-tab="filters">
           <span class="nav-icon">🎯</span> Feed Filters
+        </a></li>
+        <li><a href="#" class="nav-item" data-tab="ai-filters">
+          <span class="nav-icon">🤖</span> AI Filtering
         </a></li>
         <li><a href="#" class="nav-item" data-tab="settings">
           <span class="nav-icon">⚙️</span> General Settings
@@ -122,12 +125,12 @@
         </div>
       </section>
 
-      <!-- ─── Proposal Templates Tab ─── -->
+      <!-- ─── Draft Assistant Tab ─── -->
       <section id="tab-templates" class="tab-panel">
         <div class="panel-header">
           <div>
-            <h1>Proposal Templates</h1>
-            <p class="panel-desc">Create cover letter templates for auto-fill on proposal pages.</p>
+            <h1>Draft Assistant</h1>
+            <p class="panel-desc">Create cover letter drafts. A human MUST review and submit manually.</p>
           </div>
           <button id="btnAddTemplate" class="btn btn-primary">
             <span>+</span> Add Template
@@ -219,6 +222,84 @@ I'm excited about this opportunity…" required></textarea>
         </form>
       </section>
 
+      <!-- ─── AI Filtering Tab ─── -->
+      <section id="tab-ai-filters" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <h1>AI Filtering</h1>
+            <p class="panel-desc">Configure AI prompt to evaluate and filter high-quality job leads.</p>
+          </div>
+        </div>
+
+        <form id="aiFiltersForm" class="settings-form">
+          <div class="form-card">
+            <h3>Enable AI Filtering</h3>
+            <div class="form-group checkbox-group" style="margin-top: 10px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="aiEnabled">
+                <span>Enable AI Scoring for New Jobs</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h3>AI Provider Setup</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="aiProvider">Provider</label>
+                <select id="aiProvider">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="gemini">Google Gemini</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex: 2;">
+                <label for="aiApiKey">API Key</label>
+                <input type="password" id="aiApiKey" placeholder="sk-...">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h3>Filtering Parameters</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="aiMinFixedBudget">Min Fixed Budget ($)</label>
+                <input type="number" id="aiMinFixedBudget" min="0" placeholder="200">
+              </div>
+              <div class="form-group">
+                <label for="aiMinHourlyRate">Min Hourly Rate ($/hr)</label>
+                <input type="number" id="aiMinHourlyRate" min="0" placeholder="15">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="aiMinClientRating">Min Client Rating</label>
+                <input type="number" id="aiMinClientRating" min="0" max="5" step="0.1" placeholder="4.5">
+              </div>
+              <div class="form-group">
+                <label for="aiMinClientSpend">Min Client Spend ($)</label>
+                <input type="number" id="aiMinClientSpend" min="0" placeholder="1000">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="aiNiche">Niche / Required Tools (comma-separated)</label>
+              <input type="text" id="aiNiche" placeholder="Shopify, UI UX, Figma, Web Design">
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h3>System Prompt</h3>
+            <p class="form-card-desc">The prompt used to evaluate jobs. The parameters above will be appended to the job details when evaluated.</p>
+            <div class="form-group">
+              <textarea id="aiSystemPrompt" rows="18" placeholder="You are an expert Upwork job filtering assistant..."></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save AI Settings</button>
+        </form>
+      </section>
+
       <!-- ─── General Settings Tab ─── -->
       <section id="tab-settings" class="tab-panel">
         <div class="panel-header">
@@ -230,16 +311,30 @@ I'm excited about this opportunity…" required></textarea>
 
         <form id="settingsForm" class="settings-form">
           <div class="form-card">
+            <h3>Safety & Compliance</h3>
+            <p class="form-card-desc">
+              <strong>Upwork Safe Mode (Recommended)</strong> forces the extension to act strictly like a human assistant. It disables aggressive background polling, completely pauses monitoring when you are idle, and introduces randomized timing (jitter) to prevent bot detection. 
+              <br><br><em>Disclaimer: You are responsible for complying with Upwork's Terms of Service. Always review drafts before submitting proposals.</em>
+            </p>
+            <div class="form-group checkbox-group" style="margin-top: 10px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="safeModeEnabled" checked>
+                <span><strong>Enable Upwork Safe Mode</strong> (Idle detection & randomized long intervals)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-card">
             <h3>Polling Interval</h3>
-            <p class="form-card-desc">How often the extension checks for new jobs.</p>
+            <p class="form-card-desc">How often the extension checks for new jobs. In Safe Mode, these are approximate with added randomization.</p>
 
             <div class="form-group">
-              <label for="pollInterval">Check every (minutes)</label>
+              <label for="pollInterval">Check approximately every (minutes)</label>
               <select id="pollInterval">
-                <option value="1">1 minute</option>
-                <option value="2" selected>2 minutes</option>
+                <option value="2">2 minutes (High Risk)</option>
                 <option value="5">5 minutes</option>
-                <option value="10">10 minutes</option>
+                <option value="15" selected>15 minutes (Safe Mode Default)</option>
+                <option value="30">30 minutes</option>
               </select>
             </div>
           </div>

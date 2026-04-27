@@ -79,7 +79,7 @@
       textarea.dataset.toolkitFilled = 'true';
 
       // Show a subtle indicator
-      showToast('📝 Cover letter auto-filled from template.');
+      showToast('📝 Draft prepared. Please review and edit before submitting.');
     }
   }
 
@@ -184,10 +184,24 @@
       const idMatch = link.match(/\/(~[a-zA-Z0-9]+)/);
 
       if (idMatch) {
-        const budget = extractBudgetFromText(card.textContent || '');
+        const textContent = card.textContent || '';
+        const budget = extractBudgetFromText(textContent);
         const skills = Array.from(
           card.querySelectorAll('[data-test="token"] span, .up-skill-badge')
         ).map(s => s.textContent.trim());
+
+        // Extract client rating
+        const ratingMatch = textContent.match(/(\d\.\d+)\s*(?:out of 5)?\s*stars?/i);
+        const clientRating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+        
+        // Extract client spend
+        const spendMatch = textContent.match(/\$([\d,]+K?M?\+?)\s*spent/i);
+        const clientSpend = spendMatch ? spendMatch[1] : '';
+
+        // Determine job type
+        const isHourly = textContent.toLowerCase().includes('hourly');
+        const isFixed = textContent.toLowerCase().includes('fixed-price') || textContent.toLowerCase().includes('fixed price');
+        const jobType = isHourly ? 'Hourly' : (isFixed ? 'Fixed' : 'Unknown');
 
         jobs.push({
           id: idMatch[1],
@@ -197,7 +211,10 @@
           budgetValue: budget,
           skills,
           url: link,
-          paymentVerified: card.textContent?.toLowerCase().includes('payment verified') || false
+          paymentVerified: textContent.toLowerCase().includes('payment verified'),
+          clientRating,
+          clientSpend,
+          jobType
         });
       }
     });
