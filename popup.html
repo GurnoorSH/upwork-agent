@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upwork Toolkit</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="logo-row">
+        <img src="icons/icon48.png" alt="Upwork Toolkit" class="logo-icon">
+        <div>
+          <h1>Upwork Toolkit</h1>
+          <span class="subtitle">Freelance Assistant</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Status -->
+    <section class="status-section">
+      <div class="status-card" id="statusCard">
+        <span class="status-dot active" id="statusDot"></span>
+        <span class="status-text" id="statusText">Monitoring active</span>
+        <span class="status-count" id="statusCount" title="Unseen jobs">0</span>
+      </div>
+    </section>
+
+    <!-- Quick Toggles -->
+    <section class="toggles-section">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-icon">🔔</span>
+          <span class="toggle-label">Job Alerts</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleAlerts" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-icon">📝</span>
+          <span class="toggle-label">Auto-Fill Proposals</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleAutoFill" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-icon">🎯</span>
+          <span class="toggle-label">Feed Highlighting</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleHighlight" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Actions -->
+    <section class="actions-section">
+      <button id="btnCheckNow" class="btn btn-primary">
+        <span class="btn-icon">🔄</span> Check for Jobs Now
+      </button>
+      <button id="btnClearBadge" class="btn btn-secondary">
+        <span class="btn-icon">✓</span> Clear Badge
+      </button>
+    </section>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <a href="#" id="btnOptions" class="footer-link">⚙️ Settings & Templates</a>
+      <span class="version">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

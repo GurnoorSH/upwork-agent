@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upwork Toolkit – Settings</title>
+  <link rel="stylesheet" href="options.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Sidebar Nav -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <img src="icons/icon48.png" alt="Logo" class="sidebar-logo">
+        <h2>Upwork Toolkit</h2>
+      </div>
+      <ul class="nav-list">
+        <li><a href="#" class="nav-item active" data-tab="profiles">
+          <span class="nav-icon">🔍</span> Search Profiles
+        </a></li>
+        <li><a href="#" class="nav-item" data-tab="templates">
+          <span class="nav-icon">📝</span> Proposal Templates
+        </a></li>
+        <li><a href="#" class="nav-item" data-tab="filters">
+          <span class="nav-icon">🎯</span> Feed Filters
+        </a></li>
+        <li><a href="#" class="nav-item" data-tab="settings">
+          <span class="nav-icon">⚙️</span> General Settings
+        </a></li>
+      </ul>
+      <div class="sidebar-footer">
+        <span class="disclaimer">Not affiliated with Upwork</span>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="content">
+
+      <!-- ─── Search Profiles Tab ─── -->
+      <section id="tab-profiles" class="tab-panel active">
+        <div class="panel-header">
+          <div>
+            <h1>Search Profiles</h1>
+            <p class="panel-desc">Configure Upwork search URLs and filters for job alerts.</p>
+          </div>
+          <button id="btnAddProfile" class="btn btn-primary">
+            <span>+</span> Add Profile
+          </button>
+        </div>
+
+        <div id="profilesList" class="cards-list">
+          <!-- Profiles rendered here -->
+        </div>
+
+        <div id="profilesEmpty" class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <h3>No Search Profiles Yet</h3>
+          <p>Add a search profile to start receiving job alerts.</p>
+        </div>
+
+        <!-- Profile Editor Modal -->
+        <div id="profileModal" class="modal hidden">
+          <div class="modal-backdrop"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 id="profileModalTitle">Add Search Profile</h2>
+              <button class="modal-close" id="profileModalClose">✕</button>
+            </div>
+            <form id="profileForm" class="modal-body">
+              <input type="hidden" id="profileId">
+
+              <div class="form-group">
+                <label for="profileName">Profile Name</label>
+                <input type="text" id="profileName" placeholder="e.g., React Frontend Jobs" required>
+              </div>
+
+              <div class="form-group">
+                <label for="profileUrl">Upwork Search URL</label>
+                <input type="url" id="profileUrl" placeholder="https://www.upwork.com/nx/search/jobs?q=react" required>
+                <span class="form-hint">Paste the full URL from your Upwork job search page.</span>
+              </div>
+
+              <div class="form-divider"></div>
+              <h3 class="form-section-title">Filters (Optional)</h3>
+
+              <div class="form-group">
+                <label for="filterKeywords">Keywords (comma-separated)</label>
+                <input type="text" id="filterKeywords" placeholder="react, next.js, typescript">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="filterMinBudget">Min Budget ($)</label>
+                  <input type="number" id="filterMinBudget" min="0" placeholder="100">
+                </div>
+                <div class="form-group">
+                  <label for="filterMaxBudget">Max Budget ($)</label>
+                  <input type="number" id="filterMaxBudget" min="0" placeholder="5000">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="filterMinRating">Min Client Rating</label>
+                  <input type="number" id="filterMinRating" min="0" max="5" step="0.1" placeholder="4.0">
+                </div>
+                <div class="form-group checkbox-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="filterPaymentVerified">
+                    <span>Payment Verified Only</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="profileCancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Profile</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Proposal Templates Tab ─── -->
+      <section id="tab-templates" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <h1>Proposal Templates</h1>
+            <p class="panel-desc">Create cover letter templates for auto-fill on proposal pages.</p>
+          </div>
+          <button id="btnAddTemplate" class="btn btn-primary">
+            <span>+</span> Add Template
+          </button>
+        </div>
+
+        <div id="templatesList" class="cards-list">
+          <!-- Templates rendered here -->
+        </div>
+
+        <div id="templatesEmpty" class="empty-state">
+          <div class="empty-icon">📝</div>
+          <h3>No Templates Yet</h3>
+          <p>Create a template to auto-fill your cover letters.</p>
+        </div>
+
+        <!-- Template Editor Modal -->
+        <div id="templateModal" class="modal hidden">
+          <div class="modal-backdrop"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 id="templateModalTitle">Add Template</h2>
+              <button class="modal-close" id="templateModalClose">✕</button>
+            </div>
+            <form id="templateForm" class="modal-body">
+              <input type="hidden" id="templateId">
+
+              <div class="form-group">
+                <label for="templateName">Template Name</label>
+                <input type="text" id="templateName" placeholder="e.g., React Developer Proposal" required>
+              </div>
+
+              <div class="form-group">
+                <label for="templateTags">Category Tags (comma-separated)</label>
+                <input type="text" id="templateTags" placeholder="React, Frontend, TypeScript">
+              </div>
+
+              <div class="form-group">
+                <label for="templateBody">Cover Letter Body</label>
+                <textarea id="templateBody" rows="12" placeholder="Hi,
+
+I'm excited about this opportunity…" required></textarea>
+                <span class="form-hint">This text will be auto-filled into the cover letter field.</span>
+              </div>
+
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="templateDefault">
+                  <span>Set as default template</span>
+                </label>
+              </div>
+
+              <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="templateCancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Template</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Feed Filters Tab ─── -->
+      <section id="tab-filters" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <h1>Feed Filters</h1>
+            <p class="panel-desc">Control which jobs get highlighted or dimmed in the Upwork feed.</p>
+          </div>
+        </div>
+
+        <form id="feedFiltersForm" class="settings-form">
+          <div class="form-card">
+            <h3>Highlight Rules</h3>
+            <p class="form-card-desc">Jobs matching these rules will be highlighted green. Non-matching jobs will be dimmed.</p>
+
+            <div class="form-group">
+              <label for="feedKeywords">Keywords (comma-separated)</label>
+              <input type="text" id="feedKeywords" placeholder="react, node, figma, shopify">
+              <span class="form-hint">Leave empty to highlight all jobs.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="feedMinBudget">Minimum Budget ($)</label>
+              <input type="number" id="feedMinBudget" min="0" placeholder="0">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Filters</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ─── General Settings Tab ─── -->
+      <section id="tab-settings" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <h1>General Settings</h1>
+            <p class="panel-desc">Global preferences for the Upwork Toolkit extension.</p>
+          </div>
+        </div>
+
+        <form id="settingsForm" class="settings-form">
+          <div class="form-card">
+            <h3>Polling Interval</h3>
+            <p class="form-card-desc">How often the extension checks for new jobs.</p>
+
+            <div class="form-group">
+              <label for="pollInterval">Check every (minutes)</label>
+              <select id="pollInterval">
+                <option value="1">1 minute</option>
+                <option value="2" selected>2 minutes</option>
+                <option value="5">5 minutes</option>
+                <option value="10">10 minutes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h3>Data Management</h3>
+            <p class="form-card-desc">Manage stored data and reset the extension.</p>
+
+            <div class="btn-row">
+              <button type="button" id="btnExport" class="btn btn-secondary">📁 Export Settings</button>
+              <button type="button" id="btnImport" class="btn btn-secondary">📥 Import Settings</button>
+              <button type="button" id="btnReset" class="btn btn-danger">🗑️ Reset All Data</button>
+            </div>
+            <input type="file" id="importFile" accept=".json" class="hidden">
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

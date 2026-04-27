@@ -1,0 +1,39 @@
+/* ─────────────────────────────────────────────────────────────
+   Upwork Toolkit – Content Script Styles
+   Applied to upwork.com pages for feed highlighting
+   ───────────────────────────────────────────────────────────── */
+
+/* Highlighted (good match) job cards */
+.toolkit-highlighted {
+  position: relative;
+  border-left: 4px solid #14a800 !important;
+  background: linear-gradient(90deg, rgba(20, 168, 0, 0.04), transparent) !important;
+  transition: all 0.3s ease;
+}
+
+.toolkit-highlighted::after {
+  content: '★ Match';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  background: #14a800;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+/* Dimmed (filtered out) job cards */
+.toolkit-dimmed {
+  opacity: 0.35 !important;
+  filter: grayscale(0.8) !important;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.toolkit-dimmed:hover {
+  opacity: 0.7 !important;
+  filter: grayscale(0.3) !important;
+}
