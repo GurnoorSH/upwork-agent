@@ -32,7 +32,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'check-upwork-jobs') {
     const idleState = await new Promise(resolve => chrome.idle.queryState(300, resolve)); // 5 mins idle
     if (idleState === 'active') {
-      await checkAllSearchProfiles();
+      await checkAllFeeds();
     } else {
       console.log(`[Upwork Toolkit] [${new Date().toISOString()}] User is idle/locked. Skipping this check cycle to remain compliant.`);
     }
@@ -62,85 +62,111 @@ async function scheduleNextAlarm() {
   console.log(`[Upwork Toolkit] Next check scheduled in ~${delay.toFixed(1)} mins (Safe Mode: ${safeMode})`);
 }
 
+// ── Live Status Broadcasting ───────────────────────────────────
+
+async function setSyncStatus(status) {
+  await chrome.storage.local.set({ syncStatus: status });
+}
+
 // ── Main Polling Logic ───────────────────────────────────────
 
-async function checkAllSearchProfiles() {
+async function checkAllFeeds() {
   const { settings } = await chrome.storage.sync.get('settings');
   if (!settings?.jobAlertsEnabled) return;
 
-  const { searchProfiles = [] } = await chrome.storage.sync.get('searchProfiles');
-  if (!searchProfiles.length) return;
+  const { feedSources = {} } = await chrome.storage.sync.get('feedSources');
+  
+  // Default to myFeed if nothing is set
+  const activeFeeds = [];
+  if (feedSources.myFeed !== false) activeFeeds.push({ id: 'myFeed', name: 'My Feed', url: 'https://www.upwork.com/nx/find-work/' });
+  if (feedSources.bestMatches) activeFeeds.push({ id: 'bestMatches', name: 'Best Matches', url: 'https://www.upwork.com/nx/find-work/best-matches' });
+  if (feedSources.mostRecent) activeFeeds.push({ id: 'mostRecent', name: 'Most Recent', url: 'https://www.upwork.com/nx/find-work/most-recent' });
 
-  for (const profile of searchProfiles) {
+  if (!activeFeeds.length) return;
+
+  await setSyncStatus('Checking for new jobs...');
+  let hasError = false;
+
+  for (const feed of activeFeeds) {
     try {
-      console.log(`[Upwork Toolkit] [${new Date().toISOString()}] Checking profile: ${profile.name}`);
-      await checkSingleProfile(profile);
+      console.log(`[Upwork Toolkit] [${new Date().toISOString()}] Checking feed: ${feed.name}`);
+      await setSyncStatus(`Fetching: ${feed.name}`);
+      await checkSingleFeed(feed);
       
-      // Random delay between checking multiple profiles to prevent parallel hammering
       const delayMs = Math.floor(Math.random() * 3000) + 2000;
       await new Promise(r => setTimeout(r, delayMs));
     } catch (err) {
-      console.error(`[Upwork Toolkit] Error checking profile "${profile.name}":`, err);
+      console.error(`[Upwork Toolkit] Error checking feed "${feed.name}":`, err);
+      await chrome.storage.local.set({ lastFetchError: `Error on ${feed.name}: ${err.message}` });
+      hasError = true;
     }
   }
+
+  if (!hasError) {
+    await chrome.storage.local.set({ lastFetchError: null });
+  }
+  await setSyncStatus('Idle');
 }
 
-async function checkSingleProfile(profile) {
+async function checkSingleFeed(feed) {
   const { lastSeenIds = {} } = await chrome.storage.local.get('lastSeenIds');
-  const profileLastIds = lastSeenIds[profile.id] || [];
-
-  // ── Strategy: ask content script in an open Upwork tab ──────
-  // We try to find an active Upwork tab and ask it to scrape.
-  // If no tab is found, we attempt a direct fetch (may fail if
-  // Upwork requires cookies / JS rendering).
+  const feedLastIds = lastSeenIds[feed.id] || [];
 
   let jobs = [];
 
   const tabs = await chrome.tabs.query({ url: 'https://www.upwork.com/*' });
   if (tabs.length > 0) {
-    // Ask the first matching tab's content script to scrape
     try {
       const response = await chrome.tabs.sendMessage(tabs[0].id, {
         type: 'SCRAPE_JOBS',
-        url: profile.url,
-        filters: profile.filters
+        url: feed.url
       });
-      if (response?.jobs) {
-        jobs = response.jobs;
-      }
+      if (response?.jobs) jobs = response.jobs;
     } catch {
       console.warn('[Upwork Toolkit] Content script unreachable, trying direct fetch.');
-      jobs = await fetchJobsDirect(profile);
+      jobs = await fetchJobsDirect(feed);
     }
   } else {
-    jobs = await fetchJobsDirect(profile);
+    jobs = await fetchJobsDirect(feed);
   }
 
-  // Filter & deduplicate
-  const filtered = filterJobs(jobs, profile.filters);
-  let unseen = filtered.filter(j => !profileLastIds.includes(j.id));
+  // Filter (global feed filters) & deduplicate
+  const { feedFilters = {} } = await chrome.storage.sync.get('feedFilters');
+  const filtered = filterJobs(jobs, feedFilters);
+  let unseen = filtered.filter(j => !feedLastIds.includes(j.id));
 
   // AI Evaluation Step
   if (unseen.length > 0) {
     const { aiSettings } = await chrome.storage.sync.get('aiSettings');
     if (aiSettings?.enabled && aiSettings?.apiKey) {
+      await setSyncStatus(`AI scoring ${unseen.length} jobs...`);
       unseen = await evaluateJobsWithAI(unseen, aiSettings);
     }
   }
 
   if (unseen.length > 0) {
-    await sendJobNotifications(unseen, profile);
+    // Add feed source tag for the UI
+    unseen = unseen.map(j => ({ ...j, sourceFeed: feed.name }));
+    
+    await sendJobNotifications(unseen, feed);
 
-    // Update last-seen IDs (keep max 500 to avoid storage bloat)
-    const merged = Array.from(new Set([...profileLastIds, ...unseen.map(j => j.id)]));
-    lastSeenIds[profile.id] = merged.slice(-500);
-    await chrome.storage.local.set({ lastSeenIds });
+    // Update last-seen IDs
+    const merged = Array.from(new Set([...feedLastIds, ...unseen.map(j => j.id)]));
+    lastSeenIds[feed.id] = merged.slice(-500);
+    
+    // Store actual jobs for the popup to render
+    const { unseenJobs = [] } = await chrome.storage.local.get('unseenJobs');
+    
+    // Merge new jobs at the top, keep max 50 to avoid bloat
+    const newUnseenJobs = [...unseen, ...unseenJobs].slice(0, 50);
+    
+    await chrome.storage.local.set({ 
+      lastSeenIds,
+      unseenJobs: newUnseenJobs,
+      unseenCount: newUnseenJobs.length
+    });
 
-    // Update badge
-    const { unseenCount = 0 } = await chrome.storage.local.get('unseenCount');
-    const newCount = unseenCount + unseen.length;
-    await chrome.storage.local.set({ unseenCount: newCount });
-    chrome.action.setBadgeText({ text: String(newCount) });
+    chrome.action.setBadgeText({ text: String(newUnseenJobs.length) });
     chrome.action.setBadgeBackgroundColor({ color: '#14a800' });
   }
 }
@@ -242,7 +268,7 @@ chrome.notifications.onClicked.addListener((notifId) => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'FORCE_CHECK') {
-    checkAllSearchProfiles().then(() => sendResponse({ ok: true }));
+    checkAllFeeds().then(() => sendResponse({ ok: true }));
     return true; // async
   }
 
@@ -255,7 +281,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === 'CLEAR_BADGE') {
-    chrome.storage.local.set({ unseenCount: 0 });
+    chrome.storage.local.set({ unseenCount: 0, unseenJobs: [] });
     chrome.action.setBadgeText({ text: '' });
     sendResponse({ ok: true });
   }
@@ -310,6 +336,7 @@ async function evaluateJobsWithAI(jobs, aiSettings) {
     return validJobs;
   } catch (err) {
     console.error('[Upwork Toolkit] AI Evaluation failed:', err);
+    await chrome.storage.local.set({ lastFetchError: `AI Error: ${err.message}` });
     // If AI fails, fallback to passing all jobs or failing safe? 
     // Usually better to pass all if AI is temporarily down, so user doesn't miss out.
     // But since the user wants a strict filter, maybe we shouldn't. Let's return the original jobs for now.

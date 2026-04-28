@@ -99,6 +99,12 @@ body {
   animation: pulse 2s infinite;
 }
 
+.status-dot.syncing {
+  background: #f5a623;
+  box-shadow: 0 0 8px rgba(245, 166, 35, 0.3);
+  animation: pulse 1s infinite;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }

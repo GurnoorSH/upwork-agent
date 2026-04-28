@@ -5,7 +5,8 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabNavigation();
-  initProfilesTab();
+  initJobsTab();
+  initFeedsTab();
   initTemplatesTab();
   initFiltersTab();
   initAIFiltersTab();
@@ -15,6 +16,30 @@ document.addEventListener('DOMContentLoaded', () => {
 // ══════════════════════════════════════════════════════════════
 // Tab Navigation
 // ══════════════════════════════════════════════════════════════
+
+function setupFormChangeTracker(formId, getFormDataObjFn) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  const btn = form.querySelector('button[type="submit"]');
+  if (!btn) return;
+
+  let initialDataStr = JSON.stringify(getFormDataObjFn());
+
+  function checkState() {
+    const currentDataStr = JSON.stringify(getFormDataObjFn());
+    btn.disabled = currentDataStr === initialDataStr;
+  }
+
+  checkState();
+
+  form.addEventListener('input', checkState);
+  form.addEventListener('change', checkState);
+
+  return function updateInitialState() {
+    initialDataStr = JSON.stringify(getFormDataObjFn());
+    checkState();
+  };
+}
 
 function initTabNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
@@ -35,143 +60,163 @@ function initTabNavigation() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Search Profiles
+// Job Feed
 // ══════════════════════════════════════════════════════════════
 
-function initProfilesTab() {
-  const modal = document.getElementById('profileModal');
-  const form = document.getElementById('profileForm');
+function initJobsTab() {
+  const list = document.getElementById('jobFeed');
+  const empty = document.getElementById('jobFeedEmpty');
+  
+  const diagStatus = document.getElementById('diagStatus');
+  const diagNextFetch = document.getElementById('diagNextFetch');
+  const diagError = document.getElementById('diagError');
 
-  document.getElementById('btnAddProfile').addEventListener('click', () => {
-    openProfileModal();
-  });
+  let countdownInterval = null;
 
-  document.getElementById('profileModalClose').addEventListener('click', () => {
-    modal.classList.add('hidden');
-  });
-
-  document.getElementById('profileCancel').addEventListener('click', () => {
-    modal.classList.add('hidden');
-  });
-
-  modal.querySelector('.modal-backdrop').addEventListener('click', () => {
-    modal.classList.add('hidden');
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await saveProfile();
-    modal.classList.add('hidden');
-    await renderProfiles();
-    showToast('Search profile saved!');
-  });
-
-  renderProfiles();
-}
-
-function openProfileModal(profile = null) {
-  const modal = document.getElementById('profileModal');
-  const title = document.getElementById('profileModalTitle');
-
-  if (profile) {
-    title.textContent = 'Edit Search Profile';
-    document.getElementById('profileId').value = profile.id;
-    document.getElementById('profileName').value = profile.name;
-    document.getElementById('profileUrl').value = profile.url;
-    document.getElementById('filterKeywords').value = (profile.filters?.keywords || []).join(', ');
-    document.getElementById('filterMinBudget').value = profile.filters?.minBudget || '';
-    document.getElementById('filterMaxBudget').value = profile.filters?.maxBudget || '';
-    document.getElementById('filterMinRating').value = profile.filters?.minClientRating || '';
-    document.getElementById('filterPaymentVerified').checked = profile.filters?.paymentVerifiedOnly || false;
-  } else {
-    title.textContent = 'Add Search Profile';
-    document.getElementById('profileForm').reset();
-    document.getElementById('profileId').value = '';
-  }
-
-  modal.classList.remove('hidden');
-}
-
-async function saveProfile() {
-  const { searchProfiles = [] } = await chrome.storage.sync.get('searchProfiles');
-
-  const id = document.getElementById('profileId').value || generateId();
-  const keywords = document.getElementById('filterKeywords').value
-    .split(',').map(k => k.trim()).filter(Boolean);
-
-  const profile = {
-    id,
-    name: document.getElementById('profileName').value.trim(),
-    url: document.getElementById('profileUrl').value.trim(),
-    filters: {
-      keywords,
-      minBudget: parseFloat(document.getElementById('filterMinBudget').value) || undefined,
-      maxBudget: parseFloat(document.getElementById('filterMaxBudget').value) || undefined,
-      minClientRating: parseFloat(document.getElementById('filterMinRating').value) || undefined,
-      paymentVerifiedOnly: document.getElementById('filterPaymentVerified').checked
-    }
-  };
-
-  const idx = searchProfiles.findIndex(p => p.id === id);
-  if (idx >= 0) {
-    searchProfiles[idx] = profile;
-  } else {
-    searchProfiles.push(profile);
-  }
-
-  await chrome.storage.sync.set({ searchProfiles });
-}
-
-async function deleteProfile(id) {
-  if (!confirm('Delete this search profile?')) return;
-  const { searchProfiles = [] } = await chrome.storage.sync.get('searchProfiles');
-  const filtered = searchProfiles.filter(p => p.id !== id);
-  await chrome.storage.sync.set({ searchProfiles: filtered });
-  await renderProfiles();
-  showToast('Profile deleted.');
-}
-
-async function renderProfiles() {
-  const { searchProfiles = [] } = await chrome.storage.sync.get('searchProfiles');
-  const list = document.getElementById('profilesList');
-  const empty = document.getElementById('profilesEmpty');
-
-  if (!searchProfiles.length) {
-    list.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-
-  empty.classList.add('hidden');
-
-  list.innerHTML = searchProfiles.map(p => `
-    <div class="card-item" data-id="${p.id}">
-      <div class="card-info">
-        <h4>${escapeHtml(p.name)}</h4>
-        <p>${escapeHtml(p.url)}</p>
-        ${p.filters?.keywords?.length ? `
-          <div class="card-tags">
-            ${p.filters.keywords.map(k => `<span class="card-tag">${escapeHtml(k)}</span>`).join('')}
-          </div>
-        ` : ''}
-      </div>
-      <div class="card-actions">
-        <button class="card-btn edit" title="Edit" data-action="edit" data-id="${p.id}">✏️</button>
-        <button class="card-btn delete" title="Delete" data-action="delete" data-id="${p.id}">🗑️</button>
-      </div>
-    </div>
-  `).join('');
-
-  // Bind card actions
-  list.querySelectorAll('[data-action="edit"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const profile = searchProfiles.find(p => p.id === btn.dataset.id);
-      if (profile) openProfileModal(profile);
+  function updateNextFetchCountdown() {
+    chrome.alarms.get('check-upwork-jobs', (alarm) => {
+      if (!alarm) {
+        diagNextFetch.textContent = 'Not scheduled';
+        return;
+      }
+      const now = Date.now();
+      const diffMs = alarm.scheduledTime - now;
+      if (diffMs <= 0) {
+        diagNextFetch.textContent = 'Starting...';
+        return;
+      }
+      
+      const mins = Math.floor(diffMs / 60000);
+      const secs = Math.floor((diffMs % 60000) / 1000);
+      diagNextFetch.textContent = `in ${mins}m ${secs}s`;
     });
+  }
+
+  function startDiagnostics() {
+    updateNextFetchCountdown();
+    countdownInterval = setInterval(updateNextFetchCountdown, 1000);
+
+    chrome.storage.local.get(['syncStatus', 'lastFetchError'], (res) => {
+      diagStatus.textContent = res.syncStatus || 'Idle';
+      if (res.syncStatus === 'Idle') {
+        diagStatus.className = 'diagnostic-value success';
+      } else {
+        diagStatus.className = 'diagnostic-value warning';
+      }
+
+      if (res.lastFetchError) {
+        diagError.textContent = res.lastFetchError;
+        diagError.className = 'diagnostic-value error';
+      } else {
+        diagError.textContent = 'None';
+        diagError.className = 'diagnostic-value success';
+      }
+    });
+  }
+
+  function renderJobs(jobs) {
+    if (!jobs || !jobs.length) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+
+    list.innerHTML = jobs.map(j => `
+      <div class="card-item job-card" data-url="https://www.upwork.com/jobs/${j.id}">
+        <div class="card-info" style="width: 100%;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <h4 style="margin: 0; font-size: 15px;">${escapeHtml(j.title)}</h4>
+            ${j.budget ? `<span style="color: var(--accent); font-weight: 700; white-space: nowrap; margin-left: 12px;">${escapeHtml(j.budget)}</span>` : ''}
+          </div>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <span class="card-badge" style="background: rgba(255,255,255,0.05); border: none; color: var(--text-secondary);">${escapeHtml(j.sourceFeed || 'Feed')}</span>
+            ${j.aiFeedback ? `<span class="card-badge" style="background: rgba(245, 166, 35, 0.1); border: 1px solid rgba(245, 166, 35, 0.2); color: #f5a623;">AI Score: ${j.aiFeedback.matchScore}/10</span>` : ''}
+          </div>
+          <p style="max-width: 100%; white-space: normal; line-height: 1.5; color: var(--text-secondary);">${escapeHtml((j.shortDescription || '').slice(0, 200))}...</p>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.job-card').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        chrome.tabs.create({ url: card.dataset.url });
+      });
+    });
+  }
+
+  // Load initial state
+  chrome.storage.local.get('unseenJobs', ({ unseenJobs = [] }) => {
+    renderJobs(unseenJobs);
+  });
+  startDiagnostics();
+
+  // Listen for changes
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local') {
+      if (changes.unseenJobs) {
+        renderJobs(changes.unseenJobs.newValue);
+      }
+      if (changes.syncStatus) {
+        const stat = changes.syncStatus.newValue || 'Idle';
+        diagStatus.textContent = stat;
+        diagStatus.className = stat === 'Idle' ? 'diagnostic-value success' : 'diagnostic-value warning';
+      }
+      if (changes.lastFetchError) {
+        const err = changes.lastFetchError.newValue;
+        if (err) {
+          diagError.textContent = err;
+          diagError.className = 'diagnostic-value error';
+        } else {
+          diagError.textContent = 'None';
+          diagError.className = 'diagnostic-value success';
+        }
+      }
+    }
   });
 
-  list.querySelectorAll('[data-action="delete"]').forEach(btn => {
-    btn.addEventListener('click', () => deleteProfile(btn.dataset.id));
+  document.getElementById('btnClearJobs').addEventListener('click', async () => {
+    if (confirm('Clear the job feed?')) {
+      await chrome.runtime.sendMessage({ type: 'CLEAR_BADGE' });
+      renderJobs([]);
+      showToast('Job feed cleared.');
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// Feed Sources
+// ══════════════════════════════════════════════════════════════
+
+function initFeedsTab() {
+  let updateBtnState = () => {};
+
+  chrome.storage.sync.get('feedSources', ({ feedSources = {} }) => {
+    document.getElementById('feedMyFeed').checked = feedSources.myFeed !== false; // default true
+    document.getElementById('feedBestMatches').checked = feedSources.bestMatches || false;
+    document.getElementById('feedMostRecent').checked = feedSources.mostRecent || false;
+    
+    updateBtnState = setupFormChangeTracker('feedSourcesForm', () => ({
+      myFeed: document.getElementById('feedMyFeed').checked,
+      bestMatches: document.getElementById('feedBestMatches').checked,
+      mostRecent: document.getElementById('feedMostRecent').checked
+    }));
+  });
+
+  document.getElementById('feedSourcesForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const feedSources = {
+      myFeed: document.getElementById('feedMyFeed').checked,
+      bestMatches: document.getElementById('feedBestMatches').checked,
+      mostRecent: document.getElementById('feedMostRecent').checked
+    };
+
+    await chrome.storage.sync.set({ feedSources });
+    updateBtnState();
+    showToast('Feed sources saved!');
   });
 }
 
@@ -319,10 +364,17 @@ async function renderTemplates() {
 // ══════════════════════════════════════════════════════════════
 
 async function initFiltersTab() {
-  const { feedFilters = {} } = await chrome.storage.sync.get('feedFilters');
+  let updateBtnState = () => {};
 
-  document.getElementById('feedKeywords').value = (feedFilters.keywords || []).join(', ');
-  document.getElementById('feedMinBudget').value = feedFilters.minBudget || '';
+  chrome.storage.sync.get('feedFilters', ({ feedFilters = {} }) => {
+    document.getElementById('feedKeywords').value = (feedFilters.keywords || []).join(', ');
+    document.getElementById('feedMinBudget').value = feedFilters.minBudget || '';
+
+    updateBtnState = setupFormChangeTracker('feedFiltersForm', () => ({
+      keywords: document.getElementById('feedKeywords').value.trim(),
+      minBudget: document.getElementById('feedMinBudget').value
+    }));
+  });
 
   document.getElementById('feedFiltersForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -335,6 +387,7 @@ async function initFiltersTab() {
       feedFilters: { keywords, minBudget }
     });
 
+    updateBtnState();
     showToast('Feed filters saved!');
   });
 }
@@ -429,15 +482,31 @@ Match Score (1–10)
 Important Rule
 If a job has mixed signals, be strict — only include jobs that are clearly worth applying to.`;
 
-  document.getElementById('aiEnabled').checked = aiSettings.enabled || false;
-  document.getElementById('aiProvider').value = aiSettings.provider || 'openai';
-  document.getElementById('aiApiKey').value = aiSettings.apiKey || '';
-  document.getElementById('aiMinFixedBudget').value = aiSettings.minFixedBudget || '';
-  document.getElementById('aiMinHourlyRate').value = aiSettings.minHourlyRate || '';
-  document.getElementById('aiMinClientRating').value = aiSettings.minClientRating || '';
-  document.getElementById('aiMinClientSpend').value = aiSettings.minClientSpend || '';
-  document.getElementById('aiNiche').value = aiSettings.niche || '';
-  document.getElementById('aiSystemPrompt').value = aiSettings.systemPrompt || defaultPrompt;
+  let updateBtnState = () => {};
+
+  chrome.storage.sync.get('aiSettings', ({ aiSettings = {} }) => {
+    document.getElementById('aiEnabled').checked = aiSettings.enabled || false;
+    document.getElementById('aiProvider').value = aiSettings.provider || 'openai';
+    document.getElementById('aiApiKey').value = aiSettings.apiKey || '';
+    document.getElementById('aiMinFixedBudget').value = aiSettings.minFixedBudget || '';
+    document.getElementById('aiMinHourlyRate').value = aiSettings.minHourlyRate || '';
+    document.getElementById('aiMinClientRating').value = aiSettings.minClientRating || '';
+    document.getElementById('aiMinClientSpend').value = aiSettings.minClientSpend || '';
+    document.getElementById('aiNiche').value = aiSettings.niche || '';
+    document.getElementById('aiSystemPrompt').value = aiSettings.systemPrompt || defaultPrompt;
+
+    updateBtnState = setupFormChangeTracker('aiFiltersForm', () => ({
+      enabled: document.getElementById('aiEnabled').checked,
+      provider: document.getElementById('aiProvider').value,
+      apiKey: document.getElementById('aiApiKey').value.trim(),
+      minFixedBudget: document.getElementById('aiMinFixedBudget').value,
+      minHourlyRate: document.getElementById('aiMinHourlyRate').value,
+      minClientRating: document.getElementById('aiMinClientRating').value,
+      minClientSpend: document.getElementById('aiMinClientSpend').value,
+      niche: document.getElementById('aiNiche').value.trim(),
+      systemPrompt: document.getElementById('aiSystemPrompt').value.trim()
+    }));
+  });
 
   document.getElementById('aiFiltersForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -466,6 +535,7 @@ If a job has mixed signals, be strict — only include jobs that are clearly wor
       }
     });
 
+    updateBtnState();
     showToast('AI filtering settings saved!');
   });
 }
@@ -475,10 +545,19 @@ If a job has mixed signals, be strict — only include jobs that are clearly wor
 // ══════════════════════════════════════════════════════════════
 
 async function initSettingsTab() {
-  const { settings = {} } = await chrome.storage.sync.get('settings');
+  let settings = {};
+  let updateBtnState = () => {};
 
-  document.getElementById('safeModeEnabled').checked = settings.safeModeEnabled !== false; // Default to true
-  document.getElementById('pollInterval').value = String(settings.pollIntervalMin || 15);
+  chrome.storage.sync.get('settings', (result) => {
+    settings = result.settings || {};
+    document.getElementById('safeModeEnabled').checked = settings.safeModeEnabled !== false; // Default to true
+    document.getElementById('pollInterval').value = String(settings.pollIntervalMin || 15);
+
+    updateBtnState = setupFormChangeTracker('settingsForm', () => ({
+      interval: document.getElementById('pollInterval').value,
+      safeMode: document.getElementById('safeModeEnabled').checked
+    }));
+  });
 
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -492,6 +571,7 @@ async function initSettingsTab() {
     // Update alarm interval
     await chrome.runtime.sendMessage({ type: 'UPDATE_ALARM', interval, safeMode });
 
+    updateBtnState();
     showToast('Settings saved!');
   });
 

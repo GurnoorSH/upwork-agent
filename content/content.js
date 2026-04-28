@@ -63,8 +63,15 @@
     if (!textarea) return;
     if (textarea.dataset.toolkitFilled === 'true') return; // don't re-fill
 
-    const { templates = [], selectedTemplateId } =
-      await chrome.storage.sync.get(['templates', 'selectedTemplateId']);
+    let templates = [], selectedTemplateId = null;
+    try {
+      if (!chrome.runtime.id) return;
+      const result = await chrome.storage.sync.get(['templates', 'selectedTemplateId']);
+      templates = result.templates || [];
+      selectedTemplateId = result.selectedTemplateId;
+    } catch (err) {
+      return;
+    }
 
     if (!templates.length) return;
 
@@ -99,7 +106,14 @@
   }
 
   async function styleJobFeed() {
-    const { feedFilters = {} } = await chrome.storage.sync.get('feedFilters');
+    let feedFilters = {};
+    try {
+      if (!chrome.runtime.id) return;
+      const result = await chrome.storage.sync.get('feedFilters');
+      feedFilters = result.feedFilters || {};
+    } catch (err) {
+      return; // Orphaned script after extension reload
+    }
     const { keywords = [], minBudget } = feedFilters;
 
     // Common Upwork job card selectors

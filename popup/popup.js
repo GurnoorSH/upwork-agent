@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Load current state ─────────────────────────────────────
 
   const { settings = {} } = await chrome.storage.sync.get('settings');
-  const { unseenCount = 0 } = await chrome.storage.local.get('unseenCount');
-  const { searchProfiles = [] } = await chrome.storage.sync.get('searchProfiles');
+  const { unseenCount = 0, syncStatus = 'Idle' } = await chrome.storage.local.get(['unseenCount', 'syncStatus']);
+  const { feedSources = {} } = await chrome.storage.sync.get('feedSources');
 
   toggleAlerts.checked = settings.jobAlertsEnabled !== false;
   toggleAutoFill.checked = settings.autoFillEnabled !== false;
@@ -25,16 +25,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   statusCount.textContent = unseenCount;
 
-  if (!searchProfiles.length) {
-    statusDot.classList.remove('active');
-    statusText.textContent = 'No search profiles configured';
-  } else if (!settings.jobAlertsEnabled) {
-    statusDot.classList.remove('active');
-    statusText.textContent = 'Alerts paused';
-  } else {
-    statusDot.classList.add('active');
-    statusText.textContent = `Monitoring ${searchProfiles.length} profile${searchProfiles.length > 1 ? 's' : ''}`;
+  // Determine how many feeds are active
+  let activeFeedsCount = 0;
+  if (feedSources.myFeed !== false) activeFeedsCount++;
+  if (feedSources.bestMatches) activeFeedsCount++;
+  if (feedSources.mostRecent) activeFeedsCount++;
+
+  function updateStatusUI(currentSyncStatus) {
+    if (activeFeedsCount === 0) {
+      statusDot.className = 'status-dot';
+      statusText.textContent = 'No feed sources enabled';
+      return;
+    }
+    
+    if (!toggleAlerts.checked) {
+      statusDot.className = 'status-dot';
+      statusText.textContent = 'Alerts paused';
+      return;
+    }
+
+    if (currentSyncStatus && currentSyncStatus !== 'Idle') {
+      statusDot.className = 'status-dot syncing';
+      statusText.textContent = currentSyncStatus;
+    } else {
+      statusDot.className = 'status-dot active';
+      statusText.textContent = `Monitoring ${activeFeedsCount} feed channel${activeFeedsCount > 1 ? 's' : ''}`;
+    }
   }
+
+  updateStatusUI(syncStatus);
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local') {
+      if (changes.syncStatus) updateStatusUI(changes.syncStatus.newValue);
+      if (changes.unseenCount) statusCount.textContent = changes.unseenCount.newValue;
+    }
+  });
 
   // ── Toggle Handlers ────────────────────────────────────────
 
@@ -48,13 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.storage.sync.set({ settings: newSettings });
 
     // Update status display
-    if (!toggleAlerts.checked) {
-      statusDot.classList.remove('active');
-      statusText.textContent = 'Alerts paused';
-    } else if (searchProfiles.length) {
-      statusDot.classList.add('active');
-      statusText.textContent = `Monitoring ${searchProfiles.length} profile${searchProfiles.length > 1 ? 's' : ''}`;
-    }
+    updateStatusUI('Idle'); // Forces a re-render of the base text
   }
 
   toggleAlerts.addEventListener('change', saveToggle);

@@ -160,6 +160,50 @@ body {
   font-size: 14px;
 }
 
+/* ── Diagnostics ────────────────────────── */
+
+.feed-diagnostics {
+  display: flex;
+  gap: 16px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.diagnostic-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diagnostic-label {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+}
+
+.diagnostic-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.diagnostic-value.error {
+  color: var(--danger);
+}
+
+.diagnostic-value.success {
+  color: var(--accent);
+}
+
+.diagnostic-value.warning {
+  color: #f5a623;
+}
+
 /* ── Cards List ─────────────────────────── */
 
 .cards-list {
@@ -296,6 +340,12 @@ body {
   cursor: pointer;
   transition: var(--transition);
   white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(100%);
 }
 
 .btn-primary {

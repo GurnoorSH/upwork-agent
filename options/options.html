@@ -16,8 +16,11 @@
         <h2>Upwork Toolkit</h2>
       </div>
       <ul class="nav-list">
-        <li><a href="#" class="nav-item active" data-tab="profiles">
-          <span class="nav-icon">🔍</span> Search Profiles
+        <li><a href="#" class="nav-item active" data-tab="jobs">
+          <span class="nav-icon">📋</span> Job Feed
+        </a></li>
+        <li><a href="#" class="nav-item" data-tab="feeds">
+          <span class="nav-icon">📡</span> Feed Sources
         </a></li>
         <li><a href="#" class="nav-item" data-tab="templates">
           <span class="nav-icon">📝</span> Draft Assistant
@@ -40,89 +43,87 @@
     <!-- Main Content -->
     <main class="content">
 
-      <!-- ─── Search Profiles Tab ─── -->
-      <section id="tab-profiles" class="tab-panel active">
+      <!-- ─── Job Feed Tab ─── -->
+      <section id="tab-jobs" class="tab-panel active">
         <div class="panel-header">
           <div>
-            <h1>Search Profiles</h1>
-            <p class="panel-desc">Configure Upwork search URLs and filters for job alerts.</p>
+            <h1>Job Feed</h1>
+            <p class="panel-desc">Your latest scraped jobs from Upwork. Click to view on Upwork.</p>
           </div>
-          <button id="btnAddProfile" class="btn btn-primary">
-            <span>+</span> Add Profile
+          <button id="btnClearJobs" class="btn btn-secondary">
+            <span>🗑️</span> Clear Feed
           </button>
         </div>
 
-        <div id="profilesList" class="cards-list">
-          <!-- Profiles rendered here -->
-        </div>
-
-        <div id="profilesEmpty" class="empty-state">
-          <div class="empty-icon">🔍</div>
-          <h3>No Search Profiles Yet</h3>
-          <p>Add a search profile to start receiving job alerts.</p>
-        </div>
-
-        <!-- Profile Editor Modal -->
-        <div id="profileModal" class="modal hidden">
-          <div class="modal-backdrop"></div>
-          <div class="modal-content">
-            <div class="modal-header">
-              <h2 id="profileModalTitle">Add Search Profile</h2>
-              <button class="modal-close" id="profileModalClose">✕</button>
-            </div>
-            <form id="profileForm" class="modal-body">
-              <input type="hidden" id="profileId">
-
-              <div class="form-group">
-                <label for="profileName">Profile Name</label>
-                <input type="text" id="profileName" placeholder="e.g., React Frontend Jobs" required>
-              </div>
-
-              <div class="form-group">
-                <label for="profileUrl">Upwork Search URL</label>
-                <input type="url" id="profileUrl" placeholder="https://www.upwork.com/nx/search/jobs?q=react" required>
-                <span class="form-hint">Paste the full URL from your Upwork job search page.</span>
-              </div>
-
-              <div class="form-divider"></div>
-              <h3 class="form-section-title">Filters (Optional)</h3>
-
-              <div class="form-group">
-                <label for="filterKeywords">Keywords (comma-separated)</label>
-                <input type="text" id="filterKeywords" placeholder="react, next.js, typescript">
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="filterMinBudget">Min Budget ($)</label>
-                  <input type="number" id="filterMinBudget" min="0" placeholder="100">
-                </div>
-                <div class="form-group">
-                  <label for="filterMaxBudget">Max Budget ($)</label>
-                  <input type="number" id="filterMaxBudget" min="0" placeholder="5000">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="filterMinRating">Min Client Rating</label>
-                  <input type="number" id="filterMinRating" min="0" max="5" step="0.1" placeholder="4.0">
-                </div>
-                <div class="form-group checkbox-group">
-                  <label class="checkbox-label">
-                    <input type="checkbox" id="filterPaymentVerified">
-                    <span>Payment Verified Only</span>
-                  </label>
-                </div>
-              </div>
-
-              <div class="modal-actions">
-                <button type="button" class="btn btn-ghost" id="profileCancel">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Profile</button>
-              </div>
-            </form>
+        <div class="feed-diagnostics">
+          <div class="diagnostic-item">
+            <span class="diagnostic-label">Pipeline:</span>
+            <span class="diagnostic-value" id="diagStatus">Idle</span>
+          </div>
+          <div class="diagnostic-item">
+            <span class="diagnostic-label">Next Fetch:</span>
+            <span class="diagnostic-value" id="diagNextFetch">Calculating...</span>
+          </div>
+          <div class="diagnostic-item">
+            <span class="diagnostic-label">Last Error:</span>
+            <span class="diagnostic-value error" id="diagError">None</span>
           </div>
         </div>
+
+        <div id="jobFeed" class="cards-list">
+          <!-- Job cards will be injected here -->
+        </div>
+
+        <div id="jobFeedEmpty" class="empty-state hidden">
+          <div class="empty-icon">☕</div>
+          <h3>No New Jobs</h3>
+          <p>The extension hasn't found any new jobs yet. Make sure Feed Sources are enabled.</p>
+        </div>
+      </section>
+
+      <!-- ─── Feed Sources Tab ─── -->
+      <section id="tab-feeds" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <h1>Feed Sources</h1>
+            <p class="panel-desc">Select which native Upwork job channels to monitor.</p>
+          </div>
+        </div>
+
+        <form id="feedSourcesForm" class="settings-form">
+          <div class="form-card">
+            <h3>Active Channels</h3>
+            <p class="form-card-desc">The extension will scrape jobs from these feeds based on your polling interval.</p>
+            
+            <div class="form-group checkbox-group" style="margin-top: 15px;">
+              <label class="checkbox-label" style="margin-bottom: 12px; display: flex; align-items: flex-start;">
+                <input type="checkbox" id="feedMyFeed" checked>
+                <div style="margin-left: 8px;">
+                  <strong style="display: block; margin-bottom: 4px; color: var(--text-primary);">My Feed / Saved Searches</strong>
+                  <span style="font-size: 12px; color: var(--text-secondary);">Jobs matching your personal Upwork filters. Configure these directly on Upwork's search page.</span>
+                </div>
+              </label>
+
+              <label class="checkbox-label" style="margin-bottom: 12px; display: flex; align-items: flex-start;">
+                <input type="checkbox" id="feedBestMatches">
+                <div style="margin-left: 8px;">
+                  <strong style="display: block; margin-bottom: 4px; color: var(--text-primary);">Best Matches</strong>
+                  <span style="font-size: 12px; color: var(--text-secondary);">Upwork's algorithmic matches based on your profile and history.</span>
+                </div>
+              </label>
+
+              <label class="checkbox-label" style="display: flex; align-items: flex-start;">
+                <input type="checkbox" id="feedMostRecent">
+                <div style="margin-left: 8px;">
+                  <strong style="display: block; margin-bottom: 4px; color: var(--text-primary);">Most Recent</strong>
+                  <span style="font-size: 12px; color: var(--text-secondary);">A raw, unfiltered feed of the newest jobs in your general categories.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save Feed Sources</button>
+        </form>
       </section>
 
       <!-- ─── Draft Assistant Tab ─── -->
