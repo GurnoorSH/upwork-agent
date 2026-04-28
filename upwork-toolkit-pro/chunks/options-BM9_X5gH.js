@@ -36285,10 +36285,16 @@ Arguments: ` +
   };
   const T5 = (e) => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(),
     x6 = (e, t) => ({
-      backgroundColor: t
+      background:
+        t && e.palette.mode === "dark"
+          ? "linear-gradient(90deg, rgba(255, 167, 38, 0.18), rgba(17, 23, 31, 0.98) 28%)"
+          : t
+            ? "linear-gradient(90deg, #fff5df, #ffffff 30%)"
+            : void 0,
+      borderColor: t
         ? e.palette.mode === "dark"
-          ? Am.warningDark
-          : Am.warning
+          ? "rgba(255, 183, 77, 0.55)"
+          : "#f2b84b"
         : void 0,
     }),
     k5 = (e) => {
@@ -36298,7 +36304,33 @@ Arguments: ` +
         iO,
         {
           variant: "outlined",
-          sx: { mb: e.expanded ? 1 : 3, mt: e.expanded ? 1 : 0 },
+          sx: {
+            mb: e.expanded ? 1.5 : 2,
+            mt: e.expanded ? 1 : 0,
+            borderRadius: 2,
+            overflow: "hidden",
+            borderColor:
+              t.palette.mode === "dark"
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(16,24,40,0.1)",
+            boxShadow:
+              t.palette.mode === "dark"
+                ? "0 14px 34px rgba(0,0,0,0.22)"
+                : "0 14px 34px rgba(16,24,40,0.08)",
+            transition:
+              "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+            "&:hover": {
+              borderColor:
+                t.palette.mode === "dark"
+                  ? "rgba(255,255,255,0.26)"
+                  : "rgba(16,24,40,0.2)",
+              boxShadow:
+                t.palette.mode === "dark"
+                  ? "0 18px 42px rgba(0,0,0,0.34)"
+                  : "0 18px 42px rgba(16,24,40,0.12)",
+              transform: "translateY(-1px)",
+            },
+          },
           children: g.jsxs(dO, {
             component: "a",
             target: "_blank",
@@ -36308,6 +36340,7 @@ Arguments: ` +
             rel: "noopener noreferrer",
             href: du.viewUrl(e.job.ciphertext),
             sx: {
+              display: "block",
               ...x6(t, e.unseen),
               "& .MuiCardActionArea-focusHighlight": {
                 backgroundColor: "inherit",
@@ -36315,8 +36348,30 @@ Arguments: ` +
             },
             children: [
               g.jsx(wO, {
-                sx: { pt: e.expanded ? 1 : void 0 },
-                subheaderTypographyProps: { sx: { mt: 1 } },
+                sx: {
+                  px: { xs: 2, sm: 2.5 },
+                  pt: e.expanded ? 1.5 : 2,
+                  pb: 1,
+                  "& .MuiCardHeader-content": { minWidth: 0 },
+                },
+                titleTypographyProps: {
+                  component: "h3",
+                  sx: {
+                    fontSize: "1.08rem",
+                    lineHeight: 1.35,
+                    fontWeight: 700,
+                    letterSpacing: 0,
+                  },
+                },
+                subheaderTypographyProps: {
+                  component: "div",
+                  sx: {
+                    mt: 1,
+                    color: "text.secondary",
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                  },
+                },
                 title: g.jsxs("strong", {
                   children: [
                     e.expanded &&
@@ -36352,17 +36407,25 @@ Arguments: ` +
                     g.jsx(Rt, {
                       component: "span",
                       dangerouslySetInnerHTML: { __html: e.job.title },
-                      sx: { position: "relative", top: e.expanded ? 2 : 0 },
+                      sx: {
+                        position: "relative",
+                        top: e.expanded ? 2 : 0,
+                        wordBreak: "break-word",
+                      },
                     }),
                   ],
                 }),
                 subheader: g.jsx(g.Fragment, {
                   children: g.jsxs(dt, {
-                    sx: { fontWeight: 500 },
+                    sx: {
+                      fontWeight: 600,
+                      display: "inline",
+                      color: "text.secondary",
+                    },
                     component: "span",
                     children: [
                       e.job.type,
-                      " ",
+                      " ",
                       e.job.type === "Hourly" &&
                         e.job.hourlyBudget.min !== 0 &&
                         e.job.hourlyBudget.max !== 0 &&
@@ -36373,57 +36436,88 @@ Arguments: ` +
                         e.job.hourlyBudget.min === e.job.hourlyBudget.max &&
                         `($${e.job.hourlyBudget.min}) `,
                       e.job.engagement && e.job.engagement !== "not_sure"
-                        ? `• ${e.job.engagement} • `
-                        : "• ",
-                      e.job.tierText ? `${T5(e.job.tierText)} • ` : "",
+                        ? `| ${e.job.engagement} | `
+                        : "| ",
+                      e.job.tierText ? `${T5(e.job.tierText)} | ` : "",
                       e.job.type === "Fixed-price" &&
-                        `Est. budget: $${Number.parseFloat(e.job.amount.amount)} • `,
+                        `Est. budget: $${Number.parseFloat(e.job.amount.amount)} | `,
                       e.job.type === "Hourly" &&
                         e.job.durationLabel &&
-                        `${T5(e.job.durationLabel)} • `,
+                        `${T5(e.job.durationLabel)} | `,
                       et(e.job.renewedOn ?? e.job.createdOn).fromNow(),
                     ],
                   }),
                 }),
               }),
               g.jsxs(mO, {
+                sx: { px: { xs: 2, sm: 2.5 }, pt: 1, pb: "18px !important" },
                 children: [
                   g.jsx(Rt, {
                     component: dt,
                     sx: {
-                      fontSize: "1.05rem",
+                      color: "text.primary",
+                      fontSize: "0.98rem",
+                      lineHeight: 1.65,
                       wordWrap: "break-word",
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
+                      display: "-webkit-box",
+                      WebkitLineClamp: e.expanded ? "unset" : 7,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
                     },
                     dangerouslySetInnerHTML: { __html: e.job.description },
                   }),
                   ((n = e.job.attrs) == null ? void 0 : n.length) &&
                     g.jsx(Rt, {
                       sx: {
-                        mt: 4,
-                        gap: "0.5rem",
+                        mt: 2.25,
+                        gap: 0.75,
                         display: "flex",
                         flexWrap: "wrap",
                       },
                       children: e.job.attrs.map((i) =>
-                        g.jsx(Hm, { label: i.prettyName }, i.prettyName),
+                        g.jsx(
+                          Hm,
+                          {
+                            label: i.prettyName,
+                            size: "small",
+                            sx: { fontWeight: 600 },
+                          },
+                          i.prettyName,
+                        ),
                       ),
                     }),
-                  g.jsxs(dt, {
-                    sx: { mt: 4 },
+                  g.jsxs(Rt, {
+                    sx: {
+                      mt: 2.5,
+                      display: "flex",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 1,
+                    },
                     children: [
-                      "Proposals: ",
-                      g.jsx("strong", { children: e.job.proposalsTier }),
+                      g.jsx(Hm, {
+                        size: "small",
+                        label: g.jsxs(g.Fragment, {
+                          children: [
+                            "Proposals: ",
+                            g.jsx("strong", { children: e.job.proposalsTier }),
+                          ],
+                        }),
+                        sx: { fontWeight: 600 },
+                      }),
                     ],
                   }),
                   e.job.client &&
                     g.jsxs(Rt, {
                       sx: {
-                        mt: 2,
-                        gap: "0.5rem",
+                        mt: 1.5,
+                        gap: 1,
                         display: "flex",
+                        flexWrap: "wrap",
                         alignItems: "center",
+                        color: "text.secondary",
                       },
                       children: [
                         g.jsx(dt, {
@@ -36432,6 +36526,7 @@ Arguments: ` +
                             gap: "0.5rem",
                             display: "flex",
                             alignItems: "center",
+                            fontWeight: 600,
                           },
                           children:
                             e.job.client.paymentVerificationStatus === 1
@@ -36459,6 +36554,7 @@ Arguments: ` +
                         }),
                         e.job.client.totalSpent &&
                           g.jsxs(dt, {
+                            sx: { fontWeight: 600 },
                             children: [
                               g.jsx("strong", {
                                 children: Intl.NumberFormat("en-US", {
@@ -36480,7 +36576,11 @@ Arguments: ` +
                           : a.country) &&
                           g.jsxs(dt, {
                             color: "textSecondary",
-                            sx: { display: "flex" },
+                            sx: {
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.25,
+                            },
                             children: [
                               g.jsx(BL, { color: "error" }),
                               e.job.client.location.country,
@@ -36510,7 +36610,26 @@ Arguments: ` +
               onCollapse: () => a(!1),
             })
           : g.jsx(Lr, {
-              sx: { py: 10 / 8, px: 12 / 8, ...x6(t, e.unseen) },
+              sx: {
+                py: 1.25,
+                px: { xs: 1.25, sm: 1.75 },
+                mb: 0.75,
+                borderRadius: 1.5,
+                border: "1px solid",
+                borderColor:
+                  t.palette.mode === "dark"
+                    ? "rgba(255,255,255,0.12)"
+                    : "rgba(16,24,40,0.08)",
+                bgcolor: "background.paper",
+                transition: "background 160ms ease, border-color 160ms ease",
+                "&:hover": {
+                  borderColor:
+                    t.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.22)"
+                      : "rgba(16,24,40,0.18)",
+                },
+                ...x6(t, e.unseen),
+              },
               children: g.jsx(Gr, {
                 primary: g.jsxs(Rt, {
                   sx: { gap: 1, display: "flex", alignItems: "flex-start" },
@@ -36535,6 +36654,8 @@ Arguments: ` +
                       rel: "noopener noreferrer",
                       href: du.viewUrl(e.job.ciphertext),
                       sx: {
+                        fontSize: "0.98rem",
+                        lineHeight: 1.35,
                         textDecoration: "none",
                         "&:hover": { textDecoration: "underline" },
                       },
@@ -36850,20 +36971,80 @@ Arguments: ` +
               }),
             j,
             t4.debugEnabled,
+            t.jobs.length > 0 &&
+              g.jsxs(Rt, {
+                sx: {
+                  mb: 2,
+                  p: { xs: 1.5, sm: 2 },
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  bgcolor: "background.paper",
+                  display: "flex",
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                  flexDirection: { xs: "column", sm: "row" },
+                },
+                children: [
+                  g.jsxs(Rt, {
+                    children: [
+                      g.jsx(dt, {
+                        variant: "h6",
+                        sx: { lineHeight: 1.2 },
+                        children: "Jobs feed",
+                      }),
+                      g.jsx(dt, {
+                        color: "text.secondary",
+                        sx: { mt: 0.5 },
+                        children: "Fresh opportunities, sorted as they arrive.",
+                      }),
+                    ],
+                  }),
+                  g.jsxs(Rt, {
+                    sx: { display: "flex", gap: 1, flexWrap: "wrap" },
+                    children: [
+                      g.jsx(Hm, {
+                        label: `${t.jobs.length} total`,
+                        color: "primary",
+                        sx: { fontWeight: 700 },
+                      }),
+                      l.length > 0 &&
+                        g.jsx(Hm, {
+                          label: `${l.length} new`,
+                          color: "warning",
+                          sx: { fontWeight: 700 },
+                        }),
+                    ],
+                  }),
+                ],
+              }),
             !p &&
               !S &&
               t.jobs.length === 0 &&
               !j &&
               g.jsxs(Rt, {
-                sx: { textAlign: "center" },
+                sx: {
+                  textAlign: "center",
+                  py: 8,
+                  px: 2,
+                  border: "1px dashed",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  bgcolor: "background.paper",
+                },
                 children: [
-                  g.jsx(T$, { sx: { fontSize: "12rem" } }),
+                  g.jsx(T$, {
+                    sx: { fontSize: { xs: "7rem", sm: "10rem" }, opacity: 0.8 },
+                  }),
                   g.jsx(dt, {
                     variant: "h6",
                     component: "h6",
+                    sx: { mt: 1 },
                     children: "Sit back and relax",
                   }),
                   g.jsx(dt, {
+                    color: "text.secondary",
                     sx: { mt: 0.5 },
                     children: "Extension will notify you when new jobs appear",
                   }),

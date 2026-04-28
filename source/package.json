@@ -1,0 +1,33 @@
+{
+  "name": "upwork-toolkit-agent-source",
+  "version": "1.5.48",
+  "private": true,
+  "type": "module",
+  "description": "Reconstructed source project for Upwork Toolkit - Agent Edition.",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "compile": "wxt prepare && tsc --noEmit",
+    "typecheck": "wxt prepare && tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.0.0",
+    "@mui/material": "^7.0.0",
+    "@wxt-dev/storage": "^1.1.0",
+    "axios": "^1.8.0",
+    "date-fns": "^4.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.0.0",
+    "wxt": "^0.20.0"
+  },
+  "devDependencies": {
+    "@wxt-dev/module-react": "^1.1.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.8.0"
+  }
+}
