@@ -1,0 +1,39 @@
+{
+   "action": {
+      "default_icon": "icon/32.png"
+   },
+   "background": {
+      "service_worker": "background.js",
+      "type": "module"
+   },
+   "content_scripts": [ {
+      "all_frames": true,
+      "js": [ "content-scripts/content.js" ],
+      "matches": [ "https://*.upwork.com/nx/proposals/job/*/apply*" ],
+      "run_at": "document_end"
+   } ],
+   "declarative_net_request": {
+      "rule_resources": [ {
+         "enabled": true,
+         "id": "ruleset_1",
+         "path": "request_modifier.json"
+      } ]
+   },
+   "description": "Save time and earn more with Upwork toolkit.",
+   "host_permissions": [ "https://*.upwork.com/" ],
+   "icons": {
+      "128": "icon/128.png",
+      "16": "icon/16.png",
+      "24": "icon/24.png",
+      "32": "icon/32.png",
+      "48": "icon/48.png",
+      "500": "icon/500.png"
+   },
+   "manifest_version": 3,
+   "name": "Upwork Toolkit - Agent Edition",
+   "options_ui": {
+      "page": "options.html"
+   },
+   "permissions": [ "idle", "alarms", "storage", "cookies", "offscreen", "notifications", "declarativeNetRequest" ],
+   "version": "1.5.48"
+}
