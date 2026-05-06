@@ -465,7 +465,7 @@ Recommended order for the next few sessions:
 - Phase 1 completed in `docs/APP_MAP.md` and `docs/GRAPHQL_NOTES.md`.
 - Phase 2 completed in `source/`.
 - Phase 3 completed in `source/` with typed WXT storage wrappers and placeholder options persistence.
-- Phase 4 completed in `source/` with a typed Jobs page rendering stored/mock jobs, compact and detailed states, empty state, unread status, and job click behavior.
+- Phase 4 completed in `source/` with a typed Jobs page rendering stored jobs, compact and detailed states, empty state, unread status, and job click behavior. Mock job seeding was later removed by request.
 - Phase 5 completed in `source/` with alarm-driven background polling orchestration, storage merge behavior, error classification, badges, and notifications. Live GraphQL fetching remains Phase 6.
 - Phase 6 completed in `source/` with typed Upwork GraphQL requests, token-cookie acquisition, feed normalization, job-details request, username lookup, and error helpers.
 - Phase 7 completed in `source/` with local-only Gemini AI lead filter settings, default prompt/profile storage, route/navigation, and typed AI module scaffolding. Gemini ranking remains Phase 8.

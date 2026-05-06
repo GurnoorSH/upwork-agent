@@ -32,7 +32,7 @@ Phase 9 source status:
 | Artifact | What it contains | Rebuilt target |
 | --- | --- | --- |
 | `chunks/_virtual_wxt-plugins-C1xRqpYK.js` | WXT browser wrapper, global state storage, logger, Upwork API client, message types, URL helpers | `source/src/storage/*`, `source/src/graphql/*`, `source/src/shared/messages.ts` |
-| `chunks/format-Cenk5p6T.js` | Subscription API client, analytics, colors, jobs storage, notification helpers, date-fns formatting | split across `source/src/subscription/*`, `source/src/analytics/*`, `source/src/jobs/storage.ts`, `source/src/notifications/*` |
+| `chunks/format-Cenk5p6T.js` | Subscription API client, analytics, colors, jobs storage, notification helpers, date-fns formatting | subscription UI/API removed from source; remaining behavior split across `source/src/analytics/*`, `source/src/jobs/storage.ts`, `source/src/notifications/*` |
 
 ## Planned Gemini AI Ranking Modules
 
@@ -70,12 +70,12 @@ Recovered from route declarations near the bottom of `chunks/options-BM9_X5gH.js
 | Route | Compiled component | Source component guess | Notes |
 | --- | --- | --- | --- |
 | `/` | `fH` | `JobsPage` | Main jobs feed route |
-| `/faq` | `M$` | `FaqPage` | FAQ accordion page |
 | `/logs` | `pH` | `LogsPage` | Logs/Requests tabs |
 | `/debug` | `gH` | `DebugPage` | Global state and jobs storage inspector/resetter |
 | `/settings` | `bV` | `SettingsPage` | Feed source, notifications, schedule, sound, proposal-page, dark mode |
 | `/cover-letter` | `TV` | `CoverLetterPage` | Prompt template and generated cover letter settings |
-| `/subscription` | `xH` | `SubscriptionPage` | License/subscription state and subscription API actions |
+| `/faq` | `M$` | removed | FAQ page removed from source by request |
+| `/subscription` | `xH` | removed | Subscription page removed from source by request |
 
 ## Layout And Navigation
 
@@ -94,7 +94,8 @@ Navigation items in `bH`:
 - Settings
 - Debug, hidden until debug trigger
 - Logs, hidden until debug trigger
-- FAQs
+
+Source navigation now shows Jobs, AI filter, Cover letter, Settings, Debug, and Logs. FAQ and Subscription are intentionally removed.
 
 Debug mode is triggered from Settings by clicking the version line more than 10 times. This emits `DEBUG_MODE_TRIGGERED` and reveals Debug/Logs nav items.
 
@@ -116,9 +117,9 @@ Phase 4 source status:
 - `source/src/jobs/JobList.tsx` switches between detailed cards and compact rows.
 - `source/src/jobs/JobCard.tsx` renders detailed job cards with metadata, description clamp, skills, proposal/connect chips, payment, rating, spend, and location.
 - `source/src/jobs/CompactJobRow.tsx` renders compact rows and expanded compact cards.
-- `source/src/jobs/EmptyJobsState.tsx` renders the empty state and a mock-data seed button for source verification before GraphQL exists.
+- `source/src/jobs/EmptyJobsState.tsx` renders the empty state only; mock job seeding was removed by request.
 - `source/src/jobs/jobFormatters.ts` and `source/src/jobs/jobUrls.ts` centralize display formatting and Upwork view/proposal URLs.
-- `source/src/jobs/mockJobs.ts` provides mock jobs only for manual UI verification; no GraphQL fetching is implemented in Phase 4.
+- Jobs now appear only when real fetch/ranking behavior stores them in `local:__JOBS`.
 
 Planned AI ranking UI status:
 
@@ -315,7 +316,6 @@ The detailed Phase 0 behavior is in `docs/BASELINE.md`. Source reconstruction sh
 - `source/src/background/alarms.ts`
 - `source/src/background/fetchJobsCycle.ts`
 - `source/src/background/dailyReport.ts`
-- `source/src/background/subscriptionCheck.ts`
 - `source/src/shared/messages.ts`
 - `source/src/notifications/notifications.ts`
 
@@ -327,7 +327,7 @@ Phase 5 source status:
 - `source/src/background/errorClassification.ts` maps unauthenticated, forbidden/rate-limit, network, server, and fallback errors to `GlobalState["lastCycleError"]`.
 - `source/src/background/schedule.ts` checks notification schedules before native notifications.
 - `source/src/background/badge.ts` owns action badge text/color updates.
-- `source/src/background/dailyReport.ts` and `source/src/background/subscriptionCheck.ts` are non-network placeholders that log cycle execution until those behaviors are reconstructed.
+- `source/src/background/dailyReport.ts` is a non-network placeholder that logs cycle execution until analytics behavior is reconstructed.
 - `source/src/graphql/upworkClient.ts` remains a typed Phase 6 stub, so the fetch cycle is structurally wired but cannot retrieve live jobs yet.
 
 Alarm cycles:
@@ -336,7 +336,6 @@ Alarm cycles:
 | --- | --- | --- | --- |
 | `FETCH_JOBS` | 0 minutes | 1 minute | Fetch jobs and notify |
 | `DAILY_REPORT` | 10 seconds | 24 hours | Send analytics daily report |
-| `CHECK_SUBSCRIPTION` | 10 seconds | 60 minutes | Refresh subscription/product state |
 
 ## Message Map
 
@@ -362,7 +361,7 @@ Known message validators:
 | --- | --- | --- |
 | Upwork | `https://www.upwork.com` | job feeds, auth/session token triggering, proposal details |
 | Upwork GraphQL | `https://www.upwork.com/api/graphql/v1` | job feeds, username lookup |
-| UpToolkit API | `https://www.uptoolkit.io/api` | subscription/products/cover-letter generation |
+| UpToolkit API | `https://www.uptoolkit.io/api` | old subscription/products/cover-letter generation service, not rebuilt in source |
 | Google Analytics Measurement Protocol | `https://www.google-analytics.com/mp/collect` | page view, job click, daily report, debug trigger |
 | Sentry | configured DSN in compiled bundle | production error reporting |
 
@@ -402,4 +401,3 @@ Still missing or not clearly represented:
 - empty jobs state,
 - debug page,
 - logs page,
-- subscription page.

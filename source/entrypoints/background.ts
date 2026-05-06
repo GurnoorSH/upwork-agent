@@ -1,7 +1,6 @@
 import { ensureBackgroundAlarms } from "../src/background/alarms";
 import { runDailyReportCycle } from "../src/background/dailyReport";
 import { runFetchJobsCycle } from "../src/background/fetchJobsCycle";
-import { runSubscriptionCheckCycle } from "../src/background/subscriptionCheck";
 import { getJobDetails } from "../src/graphql/upworkClient";
 import { appendLog } from "../src/logs/logStorage";
 import { CYCLE_NAMES } from "../src/shared/constants";
@@ -28,9 +27,6 @@ export default defineBackground({
           break;
         case CYCLE_NAMES.DAILY_REPORT:
           await runDailyReportCycle();
-          break;
-        case CYCLE_NAMES.CHECK_SUBSCRIPTION:
-          await runSubscriptionCheckCycle();
           break;
       }
     });

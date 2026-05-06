@@ -17,10 +17,8 @@ const NAV_ITEMS = [
   { label: "AI filter", to: "/filters" },
   { label: "Cover letter", to: "/cover-letter" },
   { label: "Settings", to: "/settings" },
-  { label: "FAQs", to: "/faq" },
   { label: "Debug", to: "/debug" },
-  { label: "Logs", to: "/logs" },
-  { label: "Subscription", to: "/subscription" }
+  { label: "Logs", to: "/logs" }
 ] as const;
 
 export function OptionsLayout() {

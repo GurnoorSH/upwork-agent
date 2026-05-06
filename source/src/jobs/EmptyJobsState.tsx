@@ -1,11 +1,7 @@
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 
-type EmptyJobsStateProps = {
-  onSeedMockJobs: () => void;
-};
-
-export function EmptyJobsState({ onSeedMockJobs }: EmptyJobsStateProps) {
+export function EmptyJobsState() {
   return (
     <Paper
       variant="outlined"
@@ -40,11 +36,6 @@ export function EmptyJobsState({ onSeedMockJobs }: EmptyJobsStateProps) {
       <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 420 }}>
         Extension will notify you when new jobs appear.
       </Typography>
-      <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
-        <Button onClick={onSeedMockJobs} variant="outlined">
-          Load mock jobs
-        </Button>
-      </Stack>
     </Paper>
   );
 }

@@ -198,8 +198,8 @@ async function getTokenCookie({
 }
 
 async function getLatestCookie(path: string): Promise<TokenCookie | null> {
-  const cookies = await browser.cookies.getAll({ url: UPWORK_ORIGIN, path });
-  const candidates = cookies.filter((cookie) => cookie.value.length > 0);
+  const cookies = await getUpworkCookies();
+  const candidates = cookies.filter((cookie) => cookie.path === path && cookie.value.length > 0);
 
   if (candidates.length === 0) {
     return null;
@@ -220,15 +220,35 @@ async function getLatestCookie(path: string): Promise<TokenCookie | null> {
 }
 
 async function clearCookies(path: string) {
-  const cookies = await browser.cookies.getAll({ url: UPWORK_ORIGIN, path });
+  const cookies = (await getUpworkCookies()).filter((cookie) => cookie.path === path);
   await Promise.all(
     cookies.map((cookie) =>
       browser.cookies.remove({
         name: cookie.name,
-        url: `${UPWORK_ORIGIN}${cookie.path}`
+        url: getCookieUrl(cookie)
       })
     )
   );
+}
+
+async function getUpworkCookies() {
+  const [wwwCookies, rootCookies] = await Promise.all([
+    browser.cookies.getAll({ domain: "www.upwork.com" }),
+    browser.cookies.getAll({ domain: ".upwork.com" })
+  ]);
+  const byKey = new Map<string, (typeof wwwCookies)[number]>();
+
+  for (const cookie of [...wwwCookies, ...rootCookies]) {
+    byKey.set(`${cookie.domain}:${cookie.path}:${cookie.name}`, cookie);
+  }
+
+  return [...byKey.values()];
+}
+
+function getCookieUrl(cookie: { domain: string; path: string; secure: boolean }) {
+  const protocol = cookie.secure ? "https" : "http";
+  const host = cookie.domain.replace(/^\./, "");
+  return `${protocol}://${host}${cookie.path}`;
 }
 
 function isCookieUsable(cookie: TokenCookie) {

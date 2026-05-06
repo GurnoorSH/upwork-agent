@@ -6,11 +6,6 @@ export const BACKGROUND_ALARMS = [
     name: CYCLE_NAMES.DAILY_REPORT,
     delayInMinutes: 10 / 60,
     periodInMinutes: 60 * 24
-  },
-  {
-    name: CYCLE_NAMES.CHECK_SUBSCRIPTION,
-    delayInMinutes: 10 / 60,
-    periodInMinutes: 60
   }
 ] as const;
 

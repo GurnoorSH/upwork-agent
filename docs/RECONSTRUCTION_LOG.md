@@ -15,12 +15,12 @@ Use this file as the running memory for the source migration. Every agent sessio
 | `jV` | `ThemeProviderShell` | MUI theme and dark-mode wrapper | mapped |
 | `FV` | `AppStateProvider` | Loads global state, jobs, and cover-letter prompt | mapped |
 | `NV` | `OptionsApp` | Router and route declarations | mapped |
-| `M$` | `FaqPage` | FAQ accordions | mapped |
+| `M$` | removed | FAQ page removed from source by request | removed |
 | `pH` | `LogsPage` | Logs/Requests tabs | mapped |
 | `gH` | `DebugPage` | Global state and job storage debug inspector | mapped |
 | `bV` | `SettingsPage` | Extension settings page | mapped |
 | `TV` | `CoverLetterPage` | Cover letter prompt/template page | mapped |
-| `xH` | `SubscriptionPage` | Subscription/license page | mapped |
+| `xH` | removed | Subscription page removed from source by request | removed |
 
 ## 2026-04-28 Session
 
@@ -521,3 +521,56 @@ Load `source/.output/chrome-mv3` as an unpacked Chrome extension and follow `doc
 Verification:
 - Static source/build/manifest verification passed.
 - WXT build emitted the existing options chunk-size warning, but no build errors.
+
+## 2026-04-29 Remove FAQ And Subscription Session
+
+Goal:
+Remove the FAQ and Subscription pages from the source options app.
+
+Files changed:
+- `source/entrypoints/background.ts`
+- `source/src/app/App.tsx`
+- `source/src/app/layout/OptionsLayout.tsx`
+- `source/src/app/pages/FaqPage.tsx`
+- `source/src/app/pages/SubscriptionPage.tsx`
+- `source/src/background/alarms.ts`
+- `source/src/background/subscriptionCheck.ts`
+- `source/src/shared/constants.ts`
+- `docs/APP_MAP.md`
+- `docs/PHASE10_VERIFICATION.md`
+- `docs/RECONSTRUCTION_LOG.md`
+- `docs/SCREENSHOT_CHECKLIST.md`
+
+Behavior changed:
+- Removed `/faq` and `/subscription` routes.
+- Removed FAQ and Subscription navigation items.
+- Deleted FAQ and Subscription placeholder page files.
+- Removed `CHECK_SUBSCRIPTION` alarm and subscription placeholder cycle.
+- Updated docs and verification checklists to stop asking for FAQ/Subscription checks.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.
+
+## 2026-04-29 Remove Mock Jobs Session
+
+Goal:
+Remove mock jobs from the source Jobs page so the feed only shows real stored jobs.
+
+Files changed:
+- `source/src/app/pages/JobsPage.tsx`
+- `source/src/jobs/EmptyJobsState.tsx`
+- `source/src/jobs/mockJobs.ts`
+- `docs/APP_MAP.md`
+- `docs/MIGRATION_PLAN.md`
+- `docs/RECONSTRUCTION_LOG.md`
+
+Behavior changed:
+- Removed the `Load mock jobs` button from the empty Jobs state.
+- Deleted the source mock jobs dataset.
+- The Jobs feed now stays empty until the Upwork fetch and Gemini ranking pipeline stores real jobs in `local:__JOBS`.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.
+- Active source search confirms no `mockJobs`, `Load mock`, `mock-data`, or `stored/mock` references remain outside historical reconstruction notes.

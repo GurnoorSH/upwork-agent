@@ -18,7 +18,6 @@ Suggested filenames:
 05-debug.png
 06-logs.png
 07-cover-letter.png
-08-subscription.png
 ```
 
 ## Steps
@@ -52,4 +51,3 @@ Use `upwork-toolkit-pro` only when comparing against the protected baseline.
 - Empty jobs state.
 - Debug page.
 - Logs page.
-- Subscription page.

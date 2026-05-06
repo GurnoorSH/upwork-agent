@@ -5,7 +5,6 @@ import { JobFeedSummary } from "../../jobs/JobFeedSummary";
 import { JobList } from "../../jobs/JobList";
 import { getJobProposalUrl, getJobStableId, getJobViewUrl } from "../../jobs/jobUrls";
 import type { Job } from "../../jobs/jobTypes";
-import { mockJobs } from "../../jobs/mockJobs";
 import type { GlobalState } from "../../storage/globalState";
 
 export function JobsPage() {
@@ -59,7 +58,7 @@ export function JobsPage() {
       {cycleAlert ? <Alert severity={cycleAlert.severity}>{cycleAlert.message}</Alert> : null}
 
       {jobs.length === 0 ? (
-        <EmptyJobsState onSeedMockJobs={() => void saveJobs(mockJobs)} />
+        <EmptyJobsState />
       ) : (
         <JobList compact={globalState.compactList} jobs={jobs} onOpen={(job) => void openJob(job)} />
       )}

@@ -46,8 +46,6 @@ C:\Users\gurno\Desktop\Upwork\upwork-agent\source\.output\chrome-mv3
    - Settings
    - Debug
    - Logs
-   - Subscription
-   - FAQs
 6. Verify storage persistence:
    - toggle Settings values, reload options page, confirm persistence,
    - save Gemini API key/model/profile/prompt, reload, confirm persistence,
