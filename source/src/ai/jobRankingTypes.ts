@@ -2,7 +2,10 @@ import type { Job } from "../jobs/jobTypes";
 
 export type AiFilterSettings = {
   enabled: boolean;
-  apiKey: string;
+  provider: "aigen-local";
+  bridgeUrl: string;
+  bridgeToken: string;
+  platform: "gemini" | "chatgpt" | "claude" | "perplexity";
   model: string;
   profilePrompt: string;
   rankingPrompt: string;

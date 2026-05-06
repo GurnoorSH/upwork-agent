@@ -8,10 +8,16 @@ import {
 import { storageKeys } from "./keys";
 import { migrateAiFilterSettings } from "./migrations";
 
+export const DEFAULT_AIGEN_BRIDGE_URL = "http://127.0.0.1:8787";
+export const DEFAULT_AIGEN_BRIDGE_PLATFORM = "gemini";
+
 export function createDefaultAiFilterSettings(): AiFilterSettings {
   return {
     enabled: false,
-    apiKey: "",
+    provider: "aigen-local",
+    bridgeUrl: DEFAULT_AIGEN_BRIDGE_URL,
+    bridgeToken: "",
+    platform: DEFAULT_AIGEN_BRIDGE_PLATFORM,
     model: DEFAULT_GEMINI_MODEL,
     profilePrompt: DEFAULT_AI_FILTER_PROFILE,
     rankingPrompt: DEFAULT_JOB_RANKING_PROMPT

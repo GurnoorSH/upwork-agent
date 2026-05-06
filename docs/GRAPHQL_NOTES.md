@@ -23,6 +23,8 @@ getJobDetails(jobId) is called in response to runtime get-job-details messages.
 
 The source implementation centralizes query strings in `source/src/graphql/jobSearchQuery.ts`, request/normalization behavior in `source/src/graphql/requestBuilder.ts`, and token/network behavior in `source/src/graphql/upworkClient.ts`.
 
+Live verification on 2026-04-29 showed `My Feed / Saved Searches` results at `data.userSavedSearches.results`. Source parsing supports both this current shape and the older nested shape `data.data.userSavedSearches.results`.
+
 ## Current API Client Location
 
 Compiled file:

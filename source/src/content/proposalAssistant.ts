@@ -30,7 +30,11 @@ export function mountProposalAssistant() {
   if (mounted) return;
   mounted = true;
 
-  void initializeAssistant();
+  void initializeAssistant().catch((error) => {
+    mounted = false;
+    const message = error instanceof Error ? error.message : "Unable to initialize proposal assistant.";
+    console.info(`[Upwork Toolkit] Proposal assistant not mounted: ${message}`);
+  });
 }
 
 async function initializeAssistant() {
@@ -85,7 +89,7 @@ async function initializeAssistant() {
 }
 
 async function waitForCoverLetterTextarea() {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
     const textarea = document.querySelector<HTMLTextAreaElement>(COVER_LETTER_SELECTOR);
     if (textarea) return textarea;
     await wait(500);

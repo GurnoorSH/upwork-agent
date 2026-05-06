@@ -1,6 +1,6 @@
 import { storage } from "@wxt-dev/storage";
 import { storageKeys } from "../storage/keys";
-import { migrateLogs } from "../storage/migrations";
+import { MAX_EVENT_LOGS, MAX_REQUEST_LOGS, migrateLogs } from "../storage/migrations";
 import type { LogEntry, LogsState, RequestLogEntry } from "./logTypes";
 
 export const logsStorage = storage.defineItem<LogsState>(storageKeys.LOGS, {
@@ -12,7 +12,14 @@ export const logsStorage = storage.defineItem<LogsState>(storageKeys.LOGS, {
 });
 
 export async function getLogs() {
-  return migrateLogs(await logsStorage.getValue());
+  const rawLogs = await logsStorage.getValue();
+  const logs = migrateLogs(rawLogs);
+
+  if (shouldPersistTrimmedLogs(rawLogs, logs)) {
+    await logsStorage.setValue(logs);
+  }
+
+  return logs;
 }
 
 export async function setLogs(logs: LogsState) {
@@ -21,10 +28,14 @@ export async function setLogs(logs: LogsState) {
 
 export async function appendLog(log: LogEntry) {
   const current = await getLogs();
-  await setLogs({ ...current, logs: [log, ...current.logs].slice(0, 250) });
+  await setLogs({ ...current, logs: [log, ...current.logs].slice(0, MAX_EVENT_LOGS) });
 }
 
 export async function appendRequestLog(request: RequestLogEntry) {
   const current = await getLogs();
-  await setLogs({ ...current, requests: [request, ...current.requests].slice(0, 250) });
+  await setLogs({ ...current, requests: [request, ...current.requests].slice(0, MAX_REQUEST_LOGS) });
+}
+
+function shouldPersistTrimmedLogs(rawLogs: LogsState, logs: LogsState) {
+  return rawLogs.logs.length !== logs.logs.length || rawLogs.requests.length !== logs.requests.length;
 }

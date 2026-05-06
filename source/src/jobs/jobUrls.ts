@@ -7,9 +7,13 @@ export function getJobStableId(job: Job) {
 }
 
 export function getJobViewUrl(job: Job) {
-  return `${UPWORK_BASE_URL}/jobs/~${job.ciphertext}`;
+  return `${UPWORK_BASE_URL}/jobs/${getUpworkJobToken(job.ciphertext)}`;
 }
 
 export function getJobProposalUrl(job: Job) {
-  return `${UPWORK_BASE_URL}/nx/proposals/job/${job.ciphertext}/apply`;
+  return `${UPWORK_BASE_URL}/nx/proposals/job/${getUpworkJobToken(job.ciphertext)}/apply`;
+}
+
+function getUpworkJobToken(ciphertext: string) {
+  return `~${ciphertext.replace(/^~+/, "")}`;
 }

@@ -41,7 +41,11 @@ export default defineConfig({
       "notifications",
       "declarativeNetRequest"
     ],
-    host_permissions: ["https://*.upwork.com/", "https://generativelanguage.googleapis.com/*"],
+    host_permissions: [
+      "https://*.upwork.com/",
+      "http://127.0.0.1/*",
+      "http://localhost/*"
+    ],
     declarative_net_request: {
       rule_resources: [
         {

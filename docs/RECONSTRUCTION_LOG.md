@@ -552,6 +552,86 @@ Verification:
 - `npm run typecheck` passes from `source/`.
 - `npm run build` passes from `source/`.
 
+## 2026-04-29 GraphQL Response Shape Fix Session
+
+Goal:
+Fix live Upwork jobs parsing after Logs showed successful GraphQL HTTP 200 responses with `rawCount: 0`.
+
+Files changed:
+- `source/src/graphql/requestBuilder.ts`
+- `source/src/graphql/upworkClient.ts`
+- `docs/GRAPHQL_NOTES.md`
+- `docs/RECONSTRUCTION_LOG.md`
+
+Behavior changed:
+- Updated feed result parsing to support the live response shape `data.userSavedSearches.results`.
+- Preserved compatibility with the older nested shape `data.data.userSavedSearches.results`.
+- Added GraphQL response key logging so future shape drift is visible in Logs.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.
+
+## 2026-04-29 Job URL Tilde Fix Session
+
+Goal:
+Fix job/proposal URLs when Upwork ciphertext values already include a leading tilde.
+
+Files changed:
+- `source/src/jobs/jobUrls.ts`
+- `source/src/graphql/upworkClient.ts`
+- `docs/RECONSTRUCTION_LOG.md`
+
+Behavior changed:
+- Normalized Upwork job tokens so generated URLs always use exactly one leading `~`.
+- Job card clicks now open URLs like `https://www.upwork.com/jobs/~022049236704476601192` instead of `https://www.upwork.com/jobs/~~022049236704476601192`.
+- Exported GraphQL URL helpers now use the same normalization.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.
+
+## 2026-04-29 Log Retention Session
+
+Goal:
+Keep `local:__LOGS` small enough for routine debugging without accumulating hundreds of entries.
+
+Files changed:
+- `source/src/storage/migrations.ts`
+- `source/src/logs/logStorage.ts`
+- `docs/APP_MAP.md`
+- `docs/RECONSTRUCTION_LOG.md`
+
+Behavior changed:
+- Event logs are capped at 50 newest entries.
+- Request logs are capped at 25 newest entries.
+- Existing oversized log storage is trimmed when logs are loaded or when new logs are appended.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.
+
+## 2026-04-29 Gemini Rate Limit Handling Session
+
+Goal:
+Reduce repeated Gemini calls and make 429 rate-limit failures clearer in Logs.
+
+Files changed:
+- `source/src/ai/geminiClient.ts`
+- `source/src/ai/jobRanker.ts`
+- `source/src/background/fetchJobsCycle.ts`
+- `docs/RECONSTRUCTION_LOG.md`
+
+Behavior changed:
+- Added a typed `GeminiApiError` with HTTP status.
+- Fetch-cycle logs now report Gemini 429 as `Gemini ranking rate limited; preserved previous jobs feed.`
+- Ranking now reuses `aiRanking` metadata from already-stored selected jobs instead of sending those same jobs back to Gemini every cycle.
+- If no newly rankable jobs remain after cache reuse and deterministic pre-checks, the extension skips the Gemini request.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.
+
 ## 2026-04-29 Remove Mock Jobs Session
 
 Goal:
@@ -574,3 +654,28 @@ Verification:
 - `npm run typecheck` passes from `source/`.
 - `npm run build` passes from `source/`.
 - Active source search confirms no `mockJobs`, `Load mock`, `mock-data`, or `stored/mock` references remain outside historical reconstruction notes.
+
+## 2026-04-29 Logs Debugging Session
+
+Goal:
+Make failed job fetching debuggable from the source Logs page and remove a noisy proposal-assistant uncaught error.
+
+Files changed:
+- `source/src/app/pages/LogsPage.tsx`
+- `source/src/graphql/upworkClient.ts`
+- `source/src/ai/geminiClient.ts`
+- `source/src/ai/jobRanker.ts`
+- `source/src/content/proposalAssistant.ts`
+- `docs/APP_MAP.md`
+- `docs/RECONSTRUCTION_LOG.md`
+
+Behavior changed:
+- Replaced the Logs placeholder with event and request tables backed by `local:__LOGS`.
+- Added a reload action to refresh logs written by the background service worker.
+- Added event logs around Upwork token-cookie lookup, token refresh triggers, GraphQL parsing, fetch completion, and Gemini ranking counts.
+- Added request logs for Upwork page token triggers, Upwork GraphQL/proposal-detail requests, and Gemini ranking requests.
+- Proposal assistant initialization now waits longer for the cover-letter textarea and logs an informational console message instead of throwing an uncaught promise rejection when the textarea is absent.
+
+Verification:
+- `npm run typecheck` passes from `source/`.
+- `npm run build` passes from `source/`.

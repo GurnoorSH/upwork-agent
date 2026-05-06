@@ -53,7 +53,7 @@ export function buildFeedRequest(feedType: FeedType): GraphqlRequest {
 
 export function getFeedResults(response: unknown, feedType: FeedType): unknown[] {
   const data = toRecord(toRecord(response).data);
-  const graphData = toRecord(data.data);
+  const graphData = Object.keys(toRecord(data.data)).length > 0 ? toRecord(data.data) : data;
 
   switch (feedType) {
     case FEED_TYPES.MY_FEED:

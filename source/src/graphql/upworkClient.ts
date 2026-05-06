@@ -1,4 +1,5 @@
 import type { Job } from "../jobs/jobTypes";
+import { appendLog, appendRequestLog } from "../logs/logStorage";
 import type { FeedType } from "../storage/globalState";
 import { USERNAME_QUERY } from "./jobSearchQuery";
 import { buildFeedRequest, feedOptions, getFeedResults, normalizeFeedJobs } from "./requestBuilder";
@@ -45,21 +46,37 @@ type TokenCookie = {
 };
 
 export async function getJobs(feedType: FeedType): Promise<Job[]> {
+  await safeAppendLog("debug", "Starting Upwork jobs fetch.", { feedType });
   const token = await getJobsToken();
   if (!token) {
+    await safeAppendLog("error", "Could not find usable Upwork jobs token cookie.", { feedType });
     throw new UpworkApiError("UNAUTHENTICATED", 401);
   }
 
   try {
-    return await fetchFeedJobs(token, feedType);
+    const jobs = await fetchFeedJobs(token, feedType);
+    await safeAppendLog("info", "Upwork jobs fetch returned normalized jobs.", {
+      feedType,
+      normalizedCount: jobs.length
+    });
+    return jobs;
   } catch (error) {
     if (isUnauthenticatedError(error)) {
+      await safeAppendLog("warn", "Upwork GraphQL rejected the jobs token; clearing token cookies and retrying.", {
+        feedType
+      });
       await clearCookies(JOBS_TOKEN_PATH);
       const retryToken = await getJobsToken();
       if (!retryToken) {
+        await safeAppendLog("error", "Retry could not find a usable Upwork jobs token cookie.", { feedType });
         throw new UpworkApiError("UNAUTHENTICATED", 401);
       }
-      return fetchFeedJobs(retryToken, feedType);
+      const jobs = await fetchFeedJobs(retryToken, feedType);
+      await safeAppendLog("info", "Upwork jobs retry returned normalized jobs.", {
+        feedType,
+        normalizedCount: jobs.length
+      });
+      return jobs;
     }
 
     throw error;
@@ -67,8 +84,10 @@ export async function getJobs(feedType: FeedType): Promise<Job[]> {
 }
 
 export async function getJobDetails(jobId: string): Promise<unknown> {
+  await safeAppendLog("debug", "Starting Upwork job details fetch.", { jobId });
   const token = await getProposalToken(jobId);
   if (!token) {
+    await safeAppendLog("error", "Could not find usable Upwork proposal token cookie.", { jobId });
     throw new UpworkApiError("UNAUTHENTICATED", 401);
   }
 
@@ -112,11 +131,11 @@ export async function getUsername(): Promise<string> {
 }
 
 export function viewUrl(ciphertext: string) {
-  return `https://upwork.com/jobs/${ciphertext}`;
+  return `https://www.upwork.com/jobs/${getUpworkJobToken(ciphertext)}`;
 }
 
 export function proposalUrl(ciphertext: string) {
-  return `https://upwork.com/ab/proposals/job/${ciphertext}/apply`;
+  return `https://www.upwork.com/ab/proposals/job/${getUpworkJobToken(ciphertext)}/apply`;
 }
 
 export function isUnauthenticatedError(error: unknown) {
@@ -156,7 +175,16 @@ async function fetchFeedJobs(token: TokenCookie, feedType: FeedType) {
     body: JSON.stringify(buildFeedRequest(feedType))
   });
   const rawJobs = getFeedResults(response, feedType);
-  return normalizeFeedJobs(rawJobs, feedType);
+  const jobs = normalizeFeedJobs(rawJobs, feedType);
+  const data = getRecord(getRecord(response).data);
+  await safeAppendLog("debug", "Parsed Upwork GraphQL response.", {
+    feedType,
+    dataKeys: Object.keys(data),
+    nestedDataKeys: Object.keys(getRecord(data.data)),
+    rawCount: rawJobs.length,
+    normalizedCount: jobs.length
+  });
+  return jobs;
 }
 
 async function getProposalToken(jobId: string) {
@@ -175,22 +203,33 @@ async function getTokenCookie({
   shouldTryAgain?: boolean;
   triggerCookieToken: () => Promise<TriggerResponse>;
 }): Promise<TokenCookie | null> {
+  await safeAppendLog("debug", "Looking for Upwork token cookie.", { path, shouldTryAgain });
   const cookie = await getLatestCookie(path);
 
   if (cookie && isCookieUsable(cookie)) {
+    await safeAppendLog("debug", "Found usable Upwork token cookie.", {
+      path,
+      expiresAt: cookie.expirationDate ? Math.round(cookie.expirationDate * 1000) : null
+    });
     return cookie;
   }
 
   if (!shouldTryAgain) {
+    await safeAppendLog("warn", "No usable Upwork token cookie after trigger attempt.", { path });
     return null;
   }
 
   await clearCookies(path);
+  await safeAppendLog("debug", "Triggering Upwork page to refresh token cookie.", { path });
   await triggerCookieToken();
   await wait(TOKEN_RETRY_DELAY_MS);
   const triggerResponse = await triggerCookieToken();
 
   if (isLoginRedirect(triggerResponse)) {
+    await safeAppendLog("error", "Upwork token trigger redirected to login.", {
+      path,
+      responseUrl: triggerResponse.url
+    });
     return null;
   }
 
@@ -200,6 +239,11 @@ async function getTokenCookie({
 async function getLatestCookie(path: string): Promise<TokenCookie | null> {
   const cookies = await getUpworkCookies();
   const candidates = cookies.filter((cookie) => cookie.path === path && cookie.value.length > 0);
+  await safeAppendLog("debug", "Scanned Upwork cookies for token path.", {
+    path,
+    totalUpworkCookies: cookies.length,
+    candidateCount: candidates.length
+  });
 
   if (candidates.length === 0) {
     return null;
@@ -221,6 +265,7 @@ async function getLatestCookie(path: string): Promise<TokenCookie | null> {
 
 async function clearCookies(path: string) {
   const cookies = (await getUpworkCookies()).filter((cookie) => cookie.path === path);
+  await safeAppendLog("debug", "Clearing Upwork token cookies for path.", { path, count: cookies.length });
   await Promise.all(
     cookies.map((cookie) =>
       browser.cookies.remove({
@@ -261,7 +306,7 @@ type TriggerResponse = {
 };
 
 async function triggerUpworkPage(url: string): Promise<TriggerResponse> {
-  const response = await fetch(url, {
+  const response = await fetchWithRequestLog(url, {
     credentials: "include",
     headers: HTML_TRIGGER_HEADERS
   });
@@ -279,20 +324,14 @@ async function triggerUpworkPage(url: string): Promise<TriggerResponse> {
 }
 
 async function requestJson(url: string, init: RequestInit = {}) {
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      ...init,
-      credentials: "include",
-      headers: {
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
-        ...init.headers
-      }
-    });
-  } catch (error) {
-    throw new UpworkApiError(error instanceof Error ? error.message : "Network error", undefined, "ERR_NETWORK");
-  }
+  const response = await fetchWithRequestLog(url, {
+    ...init,
+    credentials: "include",
+    headers: {
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...init.headers
+    }
+  });
 
   if (!response.ok) {
     throw new UpworkApiError(response.statusText || `HTTP ${response.status}`, response.status);
@@ -342,4 +381,61 @@ function wait(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function getUpworkJobToken(ciphertext: string) {
+  return `~${ciphertext.replace(/^~+/, "")}`;
+}
+
+async function fetchWithRequestLog(url: string, init: RequestInit = {}) {
+  const startedAt = performance.now();
+  const method = init.method ?? "GET";
+
+  try {
+    const response = await fetch(url, init);
+    await safeAppendRequestLog({
+      id: crypto.randomUUID(),
+      method,
+      url,
+      status: response.status,
+      ok: response.ok,
+      durationMs: performance.now() - startedAt,
+      createdAt: Date.now()
+    });
+    return response;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Network error";
+    await safeAppendRequestLog({
+      id: crypto.randomUUID(),
+      method,
+      url,
+      ok: false,
+      durationMs: performance.now() - startedAt,
+      createdAt: Date.now(),
+      error: message
+    });
+    throw new UpworkApiError(message, undefined, "ERR_NETWORK");
+  }
+}
+
+async function safeAppendLog(level: "debug" | "info" | "warn" | "error", message: string, context?: Record<string, unknown>) {
+  try {
+    await appendLog({
+      id: crypto.randomUUID(),
+      level,
+      message,
+      createdAt: Date.now(),
+      context
+    });
+  } catch {
+    // Logging should never break the fetch path.
+  }
+}
+
+async function safeAppendRequestLog(request: Parameters<typeof appendRequestLog>[0]) {
+  try {
+    await appendRequestLog(request);
+  } catch {
+    // Request logging should never break the fetch path.
+  }
 }

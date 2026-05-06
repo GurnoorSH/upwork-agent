@@ -99,6 +99,14 @@ Source navigation now shows Jobs, AI filter, Cover letter, Settings, Debug, and 
 
 Debug mode is triggered from Settings by clicking the version line more than 10 times. This emits `DEBUG_MODE_TRIGGERED` and reveals Debug/Logs nav items.
 
+## Logs UI Status
+
+- `source/src/app/pages/LogsPage.tsx` renders `local:__LOGS` event and request logs in tabbed tables.
+- Event logs include fetch-cycle, token-cookie, GraphQL parsing, Gemini ranking, and storage/update checkpoints where available.
+- Request logs include Upwork token trigger requests, Upwork GraphQL requests, proposal-detail requests, and Gemini ranking requests.
+- The Logs page has a reload action because background service worker logs are written outside the currently open options page state.
+- Log retention is intentionally small: 50 event logs and 25 request logs, with older entries trimmed from `local:__LOGS`.
+
 ## Jobs UI Map
 
 | Compiled symbol | Source guess | Behavior |

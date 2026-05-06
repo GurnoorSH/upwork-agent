@@ -11,6 +11,10 @@ import type { LogsState } from "../logs/logTypes";
 import type { FeedType, GlobalState } from "./globalState";
 
 const FEED_TYPE_VALUES = Object.values(FEED_TYPES) as FeedType[];
+const PLATFORM_VALUES: AiFilterSettings["platform"][] = ["gemini", "chatgpt", "claude", "perplexity"];
+const DEFAULT_AIGEN_BRIDGE_URL = "http://127.0.0.1:8787";
+export const MAX_EVENT_LOGS = 50;
+export const MAX_REQUEST_LOGS = 25;
 
 export const DEFAULT_COVER_LETTER_PROMPT =
   "Create a cover letter for this job which has title:\n#{title}\n\nand job description:\n#{job_description}\n\nMention my experience with relevant technologies.\nUse less than 300 words.";
@@ -86,8 +90,8 @@ export function migrateLogs(value: unknown): LogsState {
   }
 
   return {
-    logs: Array.isArray(value.logs) ? value.logs : [],
-    requests: Array.isArray(value.requests) ? value.requests : []
+    logs: Array.isArray(value.logs) ? value.logs.slice(0, MAX_EVENT_LOGS) : [],
+    requests: Array.isArray(value.requests) ? value.requests.slice(0, MAX_REQUEST_LOGS) : []
   };
 }
 
@@ -108,7 +112,15 @@ export function migrateAiFilterSettings(value: unknown): AiFilterSettings {
 
   return {
     enabled: typeof value.enabled === "boolean" ? value.enabled : defaults.enabled,
-    apiKey: typeof value.apiKey === "string" ? value.apiKey : defaults.apiKey,
+    provider: "aigen-local",
+    bridgeUrl:
+      typeof value.bridgeUrl === "string" && value.bridgeUrl.trim().length > 0
+        ? value.bridgeUrl.trim()
+        : defaults.bridgeUrl,
+    bridgeToken: typeof value.bridgeToken === "string" ? value.bridgeToken : defaults.bridgeToken,
+    platform: PLATFORM_VALUES.includes(value.platform as AiFilterSettings["platform"])
+      ? (value.platform as AiFilterSettings["platform"])
+      : defaults.platform,
     model: typeof value.model === "string" && value.model.length > 0 ? value.model : defaults.model,
     profilePrompt:
       typeof value.profilePrompt === "string" && value.profilePrompt.length > 0
@@ -180,7 +192,10 @@ function createMigrationDefaultGlobalState(): GlobalState {
 function createMigrationDefaultAiFilterSettings(): AiFilterSettings {
   return {
     enabled: false,
-    apiKey: "",
+    provider: "aigen-local",
+    bridgeUrl: DEFAULT_AIGEN_BRIDGE_URL,
+    bridgeToken: "",
+    platform: "gemini",
     model: DEFAULT_GEMINI_MODEL,
     profilePrompt: DEFAULT_AI_FILTER_PROFILE,
     rankingPrompt: DEFAULT_JOB_RANKING_PROMPT

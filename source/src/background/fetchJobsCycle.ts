@@ -1,4 +1,5 @@
 import { getJobs as fetchUpworkJobs } from "../graphql/upworkClient";
+import { AigenBridgeError } from "../ai/aigenBridgeClient";
 import { rankAndSelectJobs } from "../ai/jobRanker";
 import { getJobs as getStoredJobs, setJobs } from "../jobs/jobsStorage";
 import { getJobStableId } from "../jobs/jobUrls";
@@ -39,14 +40,15 @@ export async function runFetchJobsCycle(now = Date.now()) {
     let rankedFetchedJobs: Awaited<ReturnType<typeof rankAndSelectJobs>>;
 
     try {
-      rankedFetchedJobs = await rankAndSelectJobs(fetchedJobs, aiFilterSettings);
+      rankedFetchedJobs = await rankAndSelectJobs(fetchedJobs, aiFilterSettings, storedJobs);
     } catch (rankingError) {
       const unseenCount = storedJobs.filter((job) => job.__isSeen === false).length;
       await setUnseenJobsBadge(unseenCount);
       await patchGlobalState({ lastCycleError: null, lastCycleStartedAt: now });
       await appendLog(
-        createLog("error", "Gemini ranking failed; preserved previous jobs feed.", {
+        createLog("error", getRankingFailureMessage(rankingError), {
           error: getErrorMessage(rankingError),
+          status: rankingError instanceof AigenBridgeError ? rankingError.status : null,
           fetchedCount: fetchedJobs.length,
           storedCount: storedJobs.length
         })
@@ -145,7 +147,7 @@ function mergeJobs(
   };
 }
 
-function createLog(level: "debug" | "info" | "error", message: string, context?: Record<string, unknown>) {
+function createLog(level: "debug" | "info" | "warn" | "error", message: string, context?: Record<string, unknown>) {
   return {
     id: crypto.randomUUID(),
     level,
@@ -153,4 +155,12 @@ function createLog(level: "debug" | "info" | "error", message: string, context?:
     createdAt: Date.now(),
     context
   };
+}
+
+function getRankingFailureMessage(error: unknown) {
+  if (error instanceof AigenBridgeError && !error.status) {
+    return "Aigen bridge unavailable; preserved previous jobs feed.";
+  }
+
+  return "AI ranking failed; preserved previous jobs feed.";
 }

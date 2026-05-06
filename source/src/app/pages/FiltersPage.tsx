@@ -1,8 +1,12 @@
 import {
   Alert,
   Button,
+  FormControl,
   FormControlLabel,
   InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   Switch,
   TextField
@@ -17,7 +21,9 @@ import { PlaceholderPage } from "./PlaceholderPage";
 export function FiltersPage() {
   const { aiFilterSettings, replaceAiFilterSettings } = useAppState();
   const [enabled, setEnabled] = useState(aiFilterSettings.enabled);
-  const [apiKey, setApiKey] = useState(aiFilterSettings.apiKey);
+  const [bridgeUrl, setBridgeUrl] = useState(aiFilterSettings.bridgeUrl);
+  const [bridgeToken, setBridgeToken] = useState(aiFilterSettings.bridgeToken);
+  const [platform, setPlatform] = useState(aiFilterSettings.platform);
   const [model, setModel] = useState(aiFilterSettings.model);
   const [profilePrompt, setProfilePrompt] = useState(aiFilterSettings.profilePrompt);
   const [rankingPrompt, setRankingPrompt] = useState(aiFilterSettings.rankingPrompt);
@@ -25,7 +31,9 @@ export function FiltersPage() {
 
   useEffect(() => {
     setEnabled(aiFilterSettings.enabled);
-    setApiKey(aiFilterSettings.apiKey);
+    setBridgeUrl(aiFilterSettings.bridgeUrl);
+    setBridgeToken(aiFilterSettings.bridgeToken);
+    setPlatform(aiFilterSettings.platform);
     setModel(aiFilterSettings.model);
     setProfilePrompt(aiFilterSettings.profilePrompt);
     setRankingPrompt(aiFilterSettings.rankingPrompt);
@@ -34,7 +42,10 @@ export function FiltersPage() {
   const save = async () => {
     await replaceAiFilterSettings({
       enabled,
-      apiKey,
+      provider: "aigen-local",
+      bridgeUrl,
+      bridgeToken,
+      platform,
       model,
       profilePrompt,
       rankingPrompt
@@ -44,7 +55,12 @@ export function FiltersPage() {
 
   const reset = async () => {
     const defaults = createDefaultAiFilterSettings();
-    await replaceAiFilterSettings({ ...defaults, apiKey });
+    await replaceAiFilterSettings({
+      ...defaults,
+      bridgeUrl,
+      bridgeToken,
+      platform
+    });
     setSaved(true);
   };
 
@@ -52,8 +68,8 @@ export function FiltersPage() {
     <PlaceholderPage title="AI lead filter" compiledSymbol="source-only">
       <Stack spacing={2.5}>
         <Alert severity="info">
-          Gemini ranking settings are local to this browser profile. Ranking runs in Phase 8 after
-          jobs are fetched and normalized.
+          AI ranking uses a local aigen bridge in this browser profile. Start the bridge before
+          running lead filtering.
         </Alert>
         {saved ? <Alert severity="success">AI filter settings saved.</Alert> : null}
         <FormControlLabel
@@ -66,27 +82,56 @@ export function FiltersPage() {
               }}
             />
           }
-          label="Enable Gemini lead ranking"
+          label="Enable AI lead ranking"
         />
         <TextField
           autoComplete="off"
-          label="Gemini API key"
+          label="Local aigen bridge URL"
           onChange={(event) => {
-            setApiKey(event.target.value);
+            setBridgeUrl(event.target.value);
+            setSaved(false);
+          }}
+          value={bridgeUrl}
+          InputProps={{
+            endAdornment: <InputAdornment position="end">default: 127.0.0.1:8787</InputAdornment>
+          }}
+        />
+        <TextField
+          autoComplete="off"
+          label="Bridge token"
+          onChange={(event) => {
+            setBridgeToken(event.target.value);
             setSaved(false);
           }}
           type="password"
-          value={apiKey}
+          value={bridgeToken}
         />
+        <FormControl fullWidth>
+          <InputLabel id="ai-platform-label">Web AI platform</InputLabel>
+          <Select
+            labelId="ai-platform-label"
+            label="Web AI platform"
+            value={platform}
+            onChange={(event) => {
+              setPlatform(event.target.value as typeof platform);
+              setSaved(false);
+            }}
+          >
+            <MenuItem value="gemini">Gemini</MenuItem>
+            <MenuItem value="chatgpt">ChatGPT</MenuItem>
+            <MenuItem value="claude">Claude</MenuItem>
+            <MenuItem value="perplexity">Perplexity</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
-          label="Gemini model"
+          label="Model label"
           onChange={(event) => {
             setModel(event.target.value);
             setSaved(false);
           }}
           value={model}
           InputProps={{
-            endAdornment: <InputAdornment position="end">default: gemini-2.5-flash</InputAdornment>
+            endAdornment: <InputAdornment position="end">optional bridge metadata</InputAdornment>
           }}
         />
         <TextField
