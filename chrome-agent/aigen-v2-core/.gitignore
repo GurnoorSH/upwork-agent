@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.ipynb_checkpoints/
+output/output/
+output/smoke_test/
+output/smoke_with_books_small/
+campaign/chunks.jsonl

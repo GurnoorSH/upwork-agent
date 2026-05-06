@@ -1,0 +1,8 @@
+# Minimal requirements for bridge-only operation
+# For full dataset mode, install with: pip install -e ".[dataset]"
+selenium>=4.20.0
+webdriver-manager>=4.0.2
+typer>=0.9.0
+rich>=13.7.0
+pydantic>=2.0.0
+PyYAML>=6.0

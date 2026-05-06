@@ -1,31 +1,133 @@
-# Upwork Toolkit - Agent Edition
+# Upwork Automation Workspace
 
-A powerful Chrome Extension built to automate and optimize the Upwork job search and application process. This toolkit helps freelancers identify high-quality leads, filter jobs, and streamline their bidding workflow.
-
-## Overview
-
-This extension integrates directly into the browser to monitor Upwork job feeds and provides sophisticated filtering and application assistance. By leveraging the user's active Upwork session within Chrome, it ensures a persistent, authenticated connection to Upwork's platform without running into typical anti-bot protections.
-
-## Key Features
-
-- **Job Monitoring:** Periodically fetches new jobs in the background and surfaces them.
-- **Advanced Filtering:** Identifies high-quality leads based on customizable parameters (client quality, budget, job clarity, and intent signals).
-- **Proposal Assistance:** Injects content scripts to assist with auto-filling proposals directly on the Upwork job application pages.
-- **Custom Options UI:** Provides a dedicated dashboard (Options page) to view the job feed, tweak settings, and configure filtering criteria.
-- **Native Notifications:** Alerts you when high-conversion opportunities matching your criteria are found.
+A two-project workspace for automating Upwork job discovery, ranking, and proposal assistance.
 
 ## Architecture
 
-This project is built using modern Chrome Extension architecture (Manifest V3):
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        This Workspace                            │
+│                                                                  │
+│  ┌─────────────────────┐         ┌──────────────────────────┐    │
+│  │   upwork-agent/     │         │   chrome-agent/          │    │
+│  │   Chrome Extension  │  HTTP   │   aigen-v2-core/         │    │
+│  │   (WXT + React+TS)  │◄───────►│   Python Bridge Server   │    │
+│  │                     │ :8787   │   (Selenium + Pydantic)  │    │
+│  └──────┬──────────────┘         └────────┬─────────────────┘    │
+│         │                                  │                     │
+│         │ Upwork GraphQL                   │ Browser Automation  │
+│         ▼                                  ▼                     │
+│  ┌──────────────┐              ┌───────────────────────┐         │
+│  │  Upwork.com  │              │  Gemini / ChatGPT /   │         │
+│  │  (jobs API)  │              │  Claude / Perplexity  │         │
+│  └──────────────┘              └───────────────────────┘         │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-- **Background Service Worker (`background.js`):** Handles background tasks such as fetching new jobs on a regular interval, checking subscription status, and sending system notifications.
-- **Options UI (`options.html`):** The primary user interface for configuring extension settings and viewing the curated job feed.
-- **Content Scripts (`content-scripts/`):** Scripts that run on specific Upwork pages (e.g., proposal submission pages) to interact with the DOM and enhance the user interface.
-- **Declarative Net Requests (`request_modifier.json`):** Rules to modify network requests for optimal data fetching.
+### upwork-agent (Chrome Extension)
 
-## Getting Started
+Monitors Upwork job feeds via GraphQL, filters and ranks jobs using AI, and assists with proposal writing. Built with WXT (Manifest V3), React, and TypeScript.
 
-1. Go to `chrome://extensions/` in your Chrome browser.
-2. Enable **Developer mode** in the top right corner.
-3. Click **Load unpacked** and select the `upwork-toolkit-pro` folder.
-4. Pin the extension to your toolbar and click its icon to access the Options page.
+### chrome-agent (Python Bridge)
+
+Local HTTP bridge server that sends job ranking prompts to logged-in AI platforms (Gemini, ChatGPT, Claude, Perplexity) through browser automation. No API keys needed — uses your existing browser sessions.
+
+## Quick Start
+
+### 1. Start Chrome with Remote Debugging
+
+```bash
+# Windows
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+
+# macOS
+open -a "Google Chrome" --args --remote-debugging-port=9222
+```
+
+Log into your preferred AI platform (e.g., gemini.google.com) in that Chrome window.
+
+### 2. Start the Bridge Server
+
+```bash
+cd chrome-agent/aigen-v2-core
+pip install -e .
+aigen bridge --host 127.0.0.1 --port 8787 --debug-port 9222 --platform gemini
+```
+
+Verify it's running: `curl http://127.0.0.1:8787/health`
+
+### 3. Build and Load the Extension
+
+```bash
+cd upwork-agent/source
+npm install
+npm run build
+```
+
+Then load the extension:
+1. Go to `chrome://extensions/`
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select `upwork-agent/source/.output/chrome-mv3`
+
+### 4. Configure the Extension
+
+1. Click the extension icon to open Options
+2. Go to **AI lead filter**
+3. Enable AI lead ranking
+4. Set bridge URL to `http://127.0.0.1:8787`
+5. Click **Check connection** to verify
+6. Save settings
+
+## Development
+
+### Extension (upwork-agent)
+
+```bash
+cd upwork-agent/source
+npm run dev          # Dev mode with hot reload
+npm run typecheck    # Type checking
+npm run build        # Production build
+```
+
+### Bridge (chrome-agent)
+
+```bash
+cd chrome-agent/aigen-v2-core
+pip install -e .
+aigen bridge --port 8787 --platform gemini    # Start bridge
+```
+
+## Project Structure
+
+```
+Upwork/
+├── upwork-agent/              # Chrome extension project
+│   ├── source/                # WXT + React + TypeScript source
+│   │   ├── entrypoints/       # Extension entry points
+│   │   │   ├── background.ts  # Service worker (alarms, jobs, messages)
+│   │   │   ├── content.ts     # Proposal assistant content script
+│   │   │   ├── offscreen/     # Sound playback offscreen document
+│   │   │   └── options/       # React options page
+│   │   └── src/               # Application source
+│   │       ├── ai/            # Bridge client, health check, ranking
+│   │       ├── app/           # React UI (pages, layout, theme)
+│   │       ├── background/    # Fetch cycle, alarms, scheduling
+│   │       ├── content/       # Proposal assistant DOM logic
+│   │       ├── graphql/       # Upwork API client
+│   │       ├── jobs/          # Job types, components, storage
+│   │       ├── logs/          # Logging utilities
+│   │       ├── shared/        # Constants, messages, utilities
+│   │       └── storage/       # Settings, migrations, state
+│   ├── docs/                  # Active documentation
+│   └── Docx/                  # AI agent context
+├── chrome-agent/              # Python bridge project
+│   └── aigen-v2-core/
+│       ├── src/aigen/
+│       │   ├── bridge/        # HTTP bridge server
+│       │   ├── core/          # Browser client, driver, tab
+│       │   ├── domains/       # Upwork ranking domain
+│       │   ├── parsers/       # JSON extraction
+│       │   └── ...            # Dataset generation (optional)
+│       └── tests/             # Unit tests
+└── start-bridge.bat           # One-command bridge launcher
+```
