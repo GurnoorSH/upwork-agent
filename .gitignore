@@ -8,6 +8,10 @@ Thumbs.db
 
 # Packages (not needed for Chrome extensions)
 node_modules/
+.python-packages/
+
+# Local tooling scratch space
+.codex-temp/
 
 # Build artifacts
 *.crx
