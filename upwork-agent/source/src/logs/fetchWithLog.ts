@@ -11,6 +11,17 @@ export async function fetchWithRequestLog(url: string, init: RequestInit = {}) {
 
   try {
     const response = await fetch(url, init);
+    
+    let responseBody: string | undefined;
+    if (!response.ok) {
+      try {
+        const cloned = response.clone();
+        responseBody = await cloned.text();
+      } catch {
+        responseBody = "[Could not read response body]";
+      }
+    }
+
     await safeAppendRequestLog({
       id: crypto.randomUUID(),
       method,
@@ -18,7 +29,8 @@ export async function fetchWithRequestLog(url: string, init: RequestInit = {}) {
       status: response.status,
       ok: response.ok,
       durationMs: performance.now() - startedAt,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      responseBody
     });
     return response;
   } catch (error) {

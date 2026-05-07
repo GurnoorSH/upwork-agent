@@ -36,13 +36,19 @@ Local HTTP bridge server that sends job ranking prompts to logged-in AI platform
 
 ### 1. Start Chrome with Remote Debugging
 
-```bash
-# Windows
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+```powershell
+# Windows (PowerShell)
+$profile = "$env:LOCALAPPDATA\aigen-chrome-user-data"
+Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe" "--remote-debugging-port=9222 --user-data-dir=""$profile"" --no-first-run --no-default-browser-check"
+
+# Windows (Classic CMD)
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\aigen-chrome-user-data" --no-first-run --no-default-browser-check
 
 # macOS
 open -a "Google Chrome" --args --remote-debugging-port=9222
 ```
+
+Chrome 136+ ignores `--remote-debugging-port` for the default Chrome user-data directory, including named profiles such as `Profile 16`. Use the non-default `aigen-chrome-user-data` directory above and log into your AI platform once there.
 
 Log into your preferred AI platform (e.g., gemini.google.com) in that Chrome window.
 
@@ -51,7 +57,7 @@ Log into your preferred AI platform (e.g., gemini.google.com) in that Chrome win
 ```bash
 cd chrome-agent/aigen-v2-core
 pip install -e .
-aigen bridge --host 127.0.0.1 --port 8787 --debug-port 9222 --platform gemini
+py -m aigen bridge --host 127.0.0.1 --port 8787 --debug-port 9222 --platform gemini
 ```
 
 Verify it's running: `curl http://127.0.0.1:8787/health`
@@ -94,7 +100,7 @@ npm run build        # Production build
 ```bash
 cd chrome-agent/aigen-v2-core
 pip install -e .
-aigen bridge --port 8787 --platform gemini    # Start bridge
+py -m aigen bridge --port 8787 --platform gemini    # Start bridge
 ```
 
 ## Project Structure

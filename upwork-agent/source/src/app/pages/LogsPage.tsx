@@ -129,7 +129,18 @@ function RequestsTable({ requests }: { requests: RequestLogEntry[] }) {
                 />
               </TableCell>
               <TableCell>{request.durationMs == null ? "-" : `${Math.round(request.durationMs)} ms`}</TableCell>
-              <TableCell sx={{ maxWidth: 300, overflowWrap: "anywhere" }}>{request.error ?? "-"}</TableCell>
+              <TableCell sx={{ maxWidth: 300, overflowWrap: "anywhere" }}>
+                {request.error && <Typography variant="body2">{request.error}</Typography>}
+                {request.responseBody && (
+                  <Box sx={{ mt: request.error ? 1 : 0 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                      Response Body:
+                    </Typography>
+                    <JsonBlock value={request.responseBody} />
+                  </Box>
+                )}
+                {!request.error && !request.responseBody && "-"}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -151,6 +162,15 @@ function JsonBlock({ value }: { value: unknown }) {
     return <Typography color="text.secondary">-</Typography>;
   }
 
+  let displayValue = value;
+  if (typeof value === "string") {
+    try {
+      displayValue = JSON.parse(value);
+    } catch {
+      // Keep as raw string if not JSON
+    }
+  }
+
   return (
     <Box
       component="pre"
@@ -165,7 +185,7 @@ function JsonBlock({ value }: { value: unknown }) {
         whiteSpace: "pre-wrap"
       }}
     >
-      {JSON.stringify(value, null, 2)}
+      {typeof displayValue === "string" ? displayValue : JSON.stringify(displayValue, null, 2)}
     </Box>
   );
 }

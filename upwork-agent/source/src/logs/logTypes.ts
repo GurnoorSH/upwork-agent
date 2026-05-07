@@ -17,6 +17,7 @@ export type RequestLogEntry = {
   durationMs?: number;
   createdAt: number;
   error?: string;
+  responseBody?: string;
 };
 
 export type LogsState = {

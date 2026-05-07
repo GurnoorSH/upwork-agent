@@ -18,12 +18,23 @@ except ImportError:
 
 def attach_driver(port: int):
     """Attach to a running Chrome instance via remote debugging port."""
+    import socket
+    
+    # Quick port check to avoid long Selenium hangs
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(2)
+        if s.connect_ex(("127.0.0.1", port)) != 0:
+            raise RuntimeError(f"Could not connect to Chrome debugging port {port}. Is Chrome running with --remote-debugging-port={port}?")
+
     log(f"Attaching to Chrome on port {port}")
     opts = Options()
     opts.add_experimental_option("debuggerAddress", f"127.0.0.1:{port}")
 
     if HAS_WDM:
         try:
+            # Silence webdriver-manager logging
+            import os
+            os.environ['WDM_LOG_LEVEL'] = '0'
             drv = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
             log("Attached via webdriver-manager", "OK")
             return drv
