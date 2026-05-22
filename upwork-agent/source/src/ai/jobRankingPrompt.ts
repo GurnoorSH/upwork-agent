@@ -1,4 +1,4 @@
-export const DEFAULT_AI_MODEL = "gemini-2.5-flash";
+export const DEFAULT_AI_MODEL = "llama-3.1-8b-instant";
 
 export const DEFAULT_AI_FILTER_PROFILE =
   "Shopify / UI UX / Figma / Web Design. Prefer mid to high-ticket projects, long-term collaboration, and clean professional communication.";

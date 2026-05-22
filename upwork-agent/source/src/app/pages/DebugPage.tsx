@@ -16,6 +16,7 @@ export function DebugPage() {
           "local:__LOGS": logs,
           "local:__AI_FILTER_SETTINGS": {
             ...aiFilterSettings,
+            groqApiKey: aiFilterSettings.groqApiKey ? "[saved locally]" : "",
             bridgeToken: aiFilterSettings.bridgeToken ? "[saved locally]" : ""
           },
           "sync:__COVER_LETTER_PROMPT": coverLetterPrompt

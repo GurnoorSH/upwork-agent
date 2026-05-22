@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { CssBaseline, ThemeProvider } from "@mui/material";
+import { CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
 import { HashRouter } from "react-router-dom";
 import { App } from "../../src/app/App";
 import { AppStateProvider, useAppState } from "../../src/app/AppStateContext";
@@ -15,7 +15,10 @@ if (!root) {
 
 function ThemedOptionsApp() {
   const { globalState } = useAppState();
-  const prefersDark = globalState.darkMode === "true";
+  const prefersSystemDark = useMediaQuery("(prefers-color-scheme: dark)");
+  const prefersDark =
+    globalState.darkMode === "true" ||
+    (globalState.darkMode === "system" && prefersSystemDark);
 
   return (
     <ThemeProvider theme={createAppTheme(prefersDark)}>

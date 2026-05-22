@@ -1,8 +1,11 @@
 import type { Job } from "../jobs/jobTypes";
 
+export type AiRankingProvider = "groq" | "aigen-local";
+
 export type AiFilterSettings = {
   enabled: boolean;
-  provider: "aigen-local";
+  provider: AiRankingProvider;
+  groqApiKey: string;
   bridgeUrl: string;
   bridgeToken: string;
   platform: "gemini" | "chatgpt" | "claude" | "perplexity";

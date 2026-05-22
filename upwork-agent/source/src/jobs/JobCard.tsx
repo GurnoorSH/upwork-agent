@@ -13,7 +13,7 @@ import {
   Typography,
   alpha
 } from "@mui/material";
-import type { MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { formatBudget, formatClientSpend, formatJobAge, getProposalLabel, getSkillLabel } from "./jobFormatters";
 import type { Job } from "./jobTypes";
 
@@ -36,6 +36,13 @@ export function JobCard({ job, onOpen }: JobCardProps) {
 
   const openJob = (event: MouseEvent) => {
     event.preventDefault();
+    event.stopPropagation();
+    onOpen(job);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
     onOpen(job);
   };
 
@@ -43,6 +50,8 @@ export function JobCard({ job, onOpen }: JobCardProps) {
     <Paper
       component="article"
       onClick={() => onOpen(job)}
+      onKeyDown={handleKeyDown}
+      role="button"
       tabIndex={0}
       variant="outlined"
       sx={(theme) => ({

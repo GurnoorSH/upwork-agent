@@ -11,8 +11,10 @@ import type { LogsState } from "../logs/logTypes";
 import type { FeedType, GlobalState } from "./globalState";
 
 const FEED_TYPE_VALUES = Object.values(FEED_TYPES) as FeedType[];
+const AI_PROVIDER_VALUES: AiFilterSettings["provider"][] = ["groq", "aigen-local"];
 const PLATFORM_VALUES: AiFilterSettings["platform"][] = ["gemini", "chatgpt", "claude", "perplexity"];
 const DEFAULT_AIGEN_BRIDGE_URL = "http://127.0.0.1:8787";
+const LEGACY_GEMINI_MODEL = "gemini-2.5-flash";
 export const MAX_EVENT_LOGS = 50;
 export const MAX_REQUEST_LOGS = 25;
 
@@ -110,9 +112,15 @@ export function migrateAiFilterSettings(value: unknown): AiFilterSettings {
     return defaults;
   }
 
+  const provider = AI_PROVIDER_VALUES.includes(value.provider as AiFilterSettings["provider"])
+    ? (value.provider as AiFilterSettings["provider"])
+    : defaults.provider;
+  const storedModel = typeof value.model === "string" && value.model.length > 0 ? value.model : defaults.model;
+
   return {
     enabled: typeof value.enabled === "boolean" ? value.enabled : defaults.enabled,
-    provider: "aigen-local",
+    provider,
+    groqApiKey: typeof value.groqApiKey === "string" ? value.groqApiKey : defaults.groqApiKey,
     bridgeUrl:
       typeof value.bridgeUrl === "string" && value.bridgeUrl.trim().length > 0
         ? value.bridgeUrl.trim()
@@ -121,7 +129,7 @@ export function migrateAiFilterSettings(value: unknown): AiFilterSettings {
     platform: PLATFORM_VALUES.includes(value.platform as AiFilterSettings["platform"])
       ? (value.platform as AiFilterSettings["platform"])
       : defaults.platform,
-    model: typeof value.model === "string" && value.model.length > 0 ? value.model : defaults.model,
+    model: provider === "groq" && storedModel === LEGACY_GEMINI_MODEL ? defaults.model : storedModel,
     profilePrompt:
       typeof value.profilePrompt === "string" && value.profilePrompt.length > 0
         ? value.profilePrompt
@@ -192,7 +200,8 @@ function createMigrationDefaultGlobalState(): GlobalState {
 function createMigrationDefaultAiFilterSettings(): AiFilterSettings {
   return {
     enabled: false,
-    provider: "aigen-local",
+    provider: "groq",
+    groqApiKey: "",
     bridgeUrl: DEFAULT_AIGEN_BRIDGE_URL,
     bridgeToken: "",
     platform: "gemini",

@@ -1,6 +1,7 @@
 import { fetchWithRequestLog } from "../logs/fetchWithLog";
-import { toArray, toRecord } from "../shared/utils";
+import { toRecord } from "../shared/utils";
 import type { AiFilterSettings, JobRankingInput, JobRankingResult } from "./jobRankingTypes";
+import { parseRankingResults } from "./rankingResultParser";
 
 export class AigenBridgeError extends Error {
   constructor(
@@ -39,7 +40,7 @@ export async function rankJobsWithAigen(
     throw new AigenBridgeError("Aigen bridge unavailable.");
   }
 
-  const json = (await response.json()) as unknown;
+  const json = await readJsonResponse(response);
 
   if (!response.ok) {
     const message = getErrorMessage(json) ?? `Aigen bridge ranking failed: HTTP ${response.status}`;
@@ -62,36 +63,14 @@ function getErrorMessage(value: unknown) {
   return typeof error === "string" && error.trim() ? error : null;
 }
 
-function parseRankingResults(value: unknown) {
-  const rawResults = toArray(toRecord(value).results);
-  return rawResults.map(parseRankingResult);
-}
+async function readJsonResponse(response: Response) {
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    if (!response.ok) {
+      return {};
+    }
 
-function parseRankingResult(value: unknown): JobRankingResult {
-  const record = toRecord(value);
-  const jobId = requireString(record.jobId, "jobId");
-  const score = clampScore(typeof record.score === "number" ? record.score : Number(record.score));
-
-  return {
-    jobId,
-    selected: record.selected === true,
-    score,
-    title: requireString(record.title, "title"),
-    budget: typeof record.budget === "string" ? record.budget : "",
-    clientSummary: typeof record.clientSummary === "string" ? record.clientSummary : "",
-    reasons: toArray(record.reasons).filter((reason): reason is string => typeof reason === "string").slice(0, 3),
-    rejectionReason: typeof record.rejectionReason === "string" ? record.rejectionReason : null
-  };
-}
-
-function requireString(value: unknown, key: string) {
-  if (typeof value !== "string") {
-    throw new Error(`Aigen bridge ranking result is missing ${key}.`);
+    throw new AigenBridgeError("Aigen bridge ranking response was not valid JSON.", response.status);
   }
-  return value;
-}
-
-function clampScore(value: number) {
-  if (Number.isNaN(value)) return 0;
-  return Math.max(1, Math.min(10, value));
 }

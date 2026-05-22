@@ -1,5 +1,6 @@
 import { getJobs as fetchUpworkJobs } from "../graphql/upworkClient";
 import { AigenBridgeError } from "../ai/aigenBridgeClient";
+import { GroqRankingError } from "../ai/groqClient";
 import { rankAndSelectJobs } from "../ai/jobRanker";
 import { getJobs as getStoredJobs, setJobs } from "../jobs/jobsStorage";
 import { getJobStableId } from "../jobs/jobUrls";
@@ -48,7 +49,10 @@ export async function runFetchJobsCycle(now = Date.now()) {
       await safeAppendLog(
         "error", getRankingFailureMessage(rankingError), {
           error: getErrorMessage(rankingError),
-          status: rankingError instanceof AigenBridgeError ? rankingError.status : null,
+          status:
+            rankingError instanceof AigenBridgeError || rankingError instanceof GroqRankingError
+              ? rankingError.status
+              : null,
           fetchedCount: fetchedJobs.length,
           storedCount: storedJobs.length
         }
@@ -150,6 +154,10 @@ function mergeJobs(
 function getRankingFailureMessage(error: unknown) {
   if (error instanceof AigenBridgeError && !error.status) {
     return "Aigen bridge unavailable; preserved previous jobs feed.";
+  }
+
+  if (error instanceof GroqRankingError && error.status === 429) {
+    return "Groq ranking rate limited; preserved previous jobs feed.";
   }
 
   return "AI ranking failed; preserved previous jobs feed.";

@@ -1,4 +1,4 @@
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 
 type JobFeedSummaryProps = {
   totalCount: number;
@@ -26,12 +26,8 @@ export function JobFeedSummary({ totalCount, unseenCount, onMarkAllSeen }: JobFe
         <Typography color="text.secondary">Fresh opportunities, sorted as they arrive.</Typography>
       </Box>
       <Stack direction="row" flexWrap="wrap" gap={1} justifyContent="flex-end">
-        <Button color="secondary" disableRipple variant="contained">
-          {totalCount} total
-        </Button>
-        <Button color="warning" disableRipple variant="contained">
-          {unseenCount} new
-        </Button>
+        <Chip color="secondary" label={`${totalCount} total`} />
+        <Chip color={unseenCount > 0 ? "warning" : "default"} label={`${unseenCount} new`} />
         {unseenCount > 0 ? (
           <Button onClick={onMarkAllSeen} variant="outlined">
             Mark seen

@@ -285,12 +285,18 @@ function injectStyles() {
     .utk-proposal-button {
       background: #14a800;
       border: 0;
-      border-radius: 999px;
+      border-radius: 8px;
       color: #fff;
       cursor: pointer;
-      font: 600 14px/1.2 Arial, sans-serif;
+      font: 700 14px/1.2 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 8px 0;
       padding: 10px 16px;
+      transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+    .utk-proposal-button:hover:not(:disabled) {
+      background: #0f8f00;
+      box-shadow: 0 8px 22px rgba(20, 168, 0, 0.24);
+      transform: translateY(-1px);
     }
     .utk-proposal-button:disabled {
       cursor: wait;
@@ -298,7 +304,7 @@ function injectStyles() {
     }
     .utk-proposal-backdrop {
       align-items: center;
-      background: rgba(0, 0, 0, 0.42);
+      background: rgba(5, 8, 7, 0.58);
       bottom: 0;
       display: flex;
       justify-content: center;
@@ -311,6 +317,7 @@ function injectStyles() {
     }
     .utk-proposal-dialog {
       background: #fff;
+      border: 1px solid rgba(17, 24, 39, 0.1);
       border-radius: 8px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       color: #111827;
@@ -321,12 +328,12 @@ function injectStyles() {
       width: min(760px, 100%);
     }
     .utk-proposal-dialog h2 {
-      font: 700 20px/1.3 Arial, sans-serif;
+      font: 700 20px/1.3 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0 0 8px;
     }
     .utk-proposal-helper,
     .utk-proposal-error {
-      font: 14px/1.45 Arial, sans-serif;
+      font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0 0 12px;
     }
     .utk-proposal-helper {
@@ -340,11 +347,16 @@ function injectStyles() {
       border-radius: 6px;
       box-sizing: border-box;
       color: #111827;
-      font: 14px/1.5 Arial, sans-serif;
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       min-height: 260px;
       padding: 12px;
       resize: vertical;
       width: 100%;
+    }
+    .utk-proposal-draft:focus {
+      border-color: #14a800;
+      box-shadow: 0 0 0 3px rgba(20, 168, 0, 0.16);
+      outline: 0;
     }
     .utk-proposal-actions {
       display: flex;
@@ -355,10 +367,11 @@ function injectStyles() {
     }
     .utk-proposal-primary,
     .utk-proposal-secondary {
-      border-radius: 999px;
+      border-radius: 8px;
       cursor: pointer;
-      font: 600 14px/1.2 Arial, sans-serif;
+      font: 700 14px/1.2 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       padding: 9px 16px;
+      transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
     }
     .utk-proposal-primary {
       background: #14a800;
@@ -369,6 +382,66 @@ function injectStyles() {
       background: #fff;
       border: 1px solid #9ca3af;
       color: #111827;
+    }
+    .utk-proposal-primary:hover {
+      background: #0f8f00;
+      border-color: #0f8f00;
+    }
+    .utk-proposal-secondary:hover {
+      background: #f6f8f6;
+      border-color: #6b7280;
+    }
+    @media (prefers-color-scheme: dark) {
+      .utk-proposal-button {
+        background: #32d583;
+        color: #06120b;
+      }
+      .utk-proposal-button:hover:not(:disabled) {
+        background: #7ee7ad;
+        box-shadow: 0 10px 24px rgba(50, 213, 131, 0.18);
+      }
+      .utk-proposal-backdrop {
+        background: rgba(3, 5, 4, 0.72);
+      }
+      .utk-proposal-dialog {
+        background: #17191d;
+        border-color: rgba(239, 244, 235, 0.1);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+        color: #f4f7f2;
+      }
+      .utk-proposal-helper {
+        color: #aab4ad;
+      }
+      .utk-proposal-error {
+        color: #ff7373;
+      }
+      .utk-proposal-draft {
+        background: rgba(255, 255, 255, 0.025);
+        border-color: rgba(239, 244, 235, 0.14);
+        color: #f4f7f2;
+      }
+      .utk-proposal-draft:focus {
+        border-color: #32d583;
+        box-shadow: 0 0 0 3px rgba(50, 213, 131, 0.18);
+      }
+      .utk-proposal-primary {
+        background: #32d583;
+        border-color: #32d583;
+        color: #06120b;
+      }
+      .utk-proposal-primary:hover {
+        background: #7ee7ad;
+        border-color: #7ee7ad;
+      }
+      .utk-proposal-secondary {
+        background: rgba(239, 244, 235, 0.04);
+        border-color: rgba(239, 244, 235, 0.18);
+        color: #f4f7f2;
+      }
+      .utk-proposal-secondary:hover {
+        background: rgba(50, 213, 131, 0.08);
+        border-color: rgba(126, 231, 173, 0.44);
+      }
     }
   `;
   document.head.appendChild(style);

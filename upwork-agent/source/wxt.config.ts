@@ -18,9 +18,9 @@ export default defineConfig({
     }
   }),
   manifest: {
-    name: "Upwork Toolkit - Agent Edition",
+    name: "Upwork Toolkit - Xam Edition",
     description: "Save time and earn more with Upwork toolkit.",
-    version: "1.5.48",
+    version: "1.0.0",
     action: {
       default_icon: "icon/32.png"
     },
@@ -43,6 +43,7 @@ export default defineConfig({
     ],
     host_permissions: [
       "https://*.upwork.com/",
+      "https://api.groq.com/*",
       "http://127.0.0.1/*",
       "http://localhost/*"
     ],

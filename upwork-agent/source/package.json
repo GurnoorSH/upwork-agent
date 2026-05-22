@@ -1,9 +1,9 @@
 {
   "name": "upwork-toolkit-agent-source",
-  "version": "1.5.48",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Reconstructed source project for Upwork Toolkit - Agent Edition.",
+  "description": "Reconstructed source project for Upwork Toolkit - Xam Edition.",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",

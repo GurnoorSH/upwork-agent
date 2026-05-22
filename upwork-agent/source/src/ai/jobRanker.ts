@@ -2,11 +2,18 @@ import type { Job } from "../jobs/jobTypes";
 import { getJobStableId } from "../jobs/jobUrls";
 import { formatBudget, getProposalLabel, getSkillLabel } from "../jobs/jobFormatters";
 import { rankJobsWithAigen } from "./aigenBridgeClient";
+import { rankJobsWithGroq } from "./groqClient";
 import { safeAppendLog } from "../logs/safeLogger";
-import type { AiFilterSettings, JobRankingJobInput, JobRankingResult } from "./jobRankingTypes";
+import { wait } from "../shared/utils";
+import type { AiFilterSettings, JobRankingInput, JobRankingJobInput, JobRankingResult } from "./jobRankingTypes";
+
+const GROQ_RANKING_BATCH_SIZE = 4;
+const GROQ_BATCH_DELAY_MS = 2200;
 
 export function shouldSkipAiRanking(settings: AiFilterSettings) {
-  return !settings.enabled || settings.bridgeUrl.trim().length === 0;
+  if (!settings.enabled) return true;
+  if (settings.provider === "groq") return settings.groqApiKey.trim().length === 0;
+  return settings.bridgeUrl.trim().length === 0;
 }
 
 export function createUnrankedJobResults(jobs: Job[]): JobRankingResult[] {
@@ -25,7 +32,7 @@ export function createUnrankedJobResults(jobs: Job[]): JobRankingResult[] {
 export async function rankAndSelectJobs(jobs: Job[], settings: AiFilterSettings, existingJobs: Job[] = []) {
   if (shouldSkipAiRanking(settings)) {
     await safeAppendLog("debug", "Skipped AI ranking.", {
-      reason: settings.enabled ? "missing_bridge_url" : "disabled",
+      reason: getSkipReason(settings),
       inputCount: jobs.length
     });
     return {
@@ -66,11 +73,12 @@ export async function rankAndSelectJobs(jobs: Job[], settings: AiFilterSettings,
     };
   }
 
-  const results = await rankJobsWithAigen(settings, {
+  const rankingInput = {
     jobs: candidateJobs.map(toRankingInput),
     profilePrompt: settings.profilePrompt,
     rankingPrompt: settings.rankingPrompt
-  });
+  };
+  const results = await rankJobsWithSelectedProvider(settings, rankingInput);
   const resultsById = new Map(results.map((result) => [result.jobId, result]));
 
   const selectedJobs: Job[] = [...cachedSelectedJobs];
@@ -110,6 +118,52 @@ export async function rankAndSelectJobs(jobs: Job[], settings: AiFilterSettings,
     evaluatedJobIds: new Set(jobs.map(getJobStableId)),
     rankingEnabled: true
   };
+}
+
+async function rankJobsWithSelectedProvider(
+  settings: AiFilterSettings,
+  input: JobRankingInput
+): Promise<JobRankingResult[]> {
+  if (settings.provider !== "groq") {
+    return rankJobsWithAigen(settings, input);
+  }
+
+  const batches = chunk(input.jobs, GROQ_RANKING_BATCH_SIZE);
+  if (batches.length > 1) {
+    await safeAppendLog("info", "Ranking jobs with Groq in smaller batches.", {
+      batchCount: batches.length,
+      batchSize: GROQ_RANKING_BATCH_SIZE,
+      jobCount: input.jobs.length
+    });
+  }
+
+  const results: JobRankingResult[] = [];
+  for (const [index, jobs] of batches.entries()) {
+    if (index > 0) {
+      await wait(GROQ_BATCH_DELAY_MS);
+    }
+
+    const batchResults = await rankJobsWithGroq(settings, {
+      ...input,
+      jobs
+    });
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
+function chunk<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function getSkipReason(settings: AiFilterSettings) {
+  if (!settings.enabled) return "disabled";
+  return settings.provider === "groq" ? "missing_groq_api_key" : "missing_bridge_url";
 }
 
 function toRankingInput(job: Job): JobRankingJobInput {

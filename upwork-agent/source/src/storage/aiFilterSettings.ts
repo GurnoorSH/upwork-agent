@@ -14,7 +14,8 @@ export const DEFAULT_AIGEN_BRIDGE_PLATFORM = "gemini";
 export function createDefaultAiFilterSettings(): AiFilterSettings {
   return {
     enabled: false,
-    provider: "aigen-local",
+    provider: "groq",
+    groqApiKey: "",
     bridgeUrl: DEFAULT_AIGEN_BRIDGE_URL,
     bridgeToken: "",
     platform: DEFAULT_AIGEN_BRIDGE_PLATFORM,

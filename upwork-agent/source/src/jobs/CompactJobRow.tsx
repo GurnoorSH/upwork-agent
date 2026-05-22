@@ -1,6 +1,7 @@
-import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import { Box, IconButton, Paper, Stack, Tooltip, Typography, alpha } from "@mui/material";
+import type { KeyboardEvent } from "react";
 import { formatBudget, formatJobAge } from "./jobFormatters";
 import type { Job } from "./jobTypes";
 import { JobCard } from "./JobCard";
@@ -15,7 +16,31 @@ type CompactJobRowProps = {
 export function CompactJobRow({ expanded, job, onOpen, onToggle }: CompactJobRowProps) {
   if (expanded) {
     return (
-      <Box>
+      <Box sx={{ position: "relative" }}>
+        <Tooltip title="Collapse">
+          <IconButton
+            aria-label="Collapse job"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            size="small"
+            sx={(theme) => ({
+              bgcolor: "background.paper",
+              border: 1,
+              borderColor: "divider",
+              position: "absolute",
+              right: 64,
+              top: 12,
+              zIndex: 1,
+              "&:hover": {
+                bgcolor: alpha(theme.palette.primary.main, 0.08)
+              }
+            })}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
         <JobCard job={job} onOpen={onOpen} />
       </Box>
     );
@@ -24,11 +49,18 @@ export function CompactJobRow({ expanded, job, onOpen, onToggle }: CompactJobRow
   const isNew = job.__isSeen === false;
   const age = formatJobAge(job);
   const budget = formatBudget(job);
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onOpen(job);
+  };
 
   return (
     <Paper
       component="article"
       onClick={() => onOpen(job)}
+      onKeyDown={handleKeyDown}
+      role="button"
       tabIndex={0}
       variant="outlined"
       sx={(theme) => ({
@@ -56,7 +88,7 @@ export function CompactJobRow({ expanded, job, onOpen, onToggle }: CompactJobRow
           }}
           size="small"
         >
-          {expanded ? <CloseIcon /> : <AddIcon />}
+          <UnfoldMoreIcon fontSize="small" />
         </IconButton>
       </Tooltip>
       <Box sx={{ minWidth: 0 }}>
